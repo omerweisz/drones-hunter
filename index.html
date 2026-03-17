@@ -10,17 +10,22 @@
         #game-wrapper { flex-grow: 1; position: relative; width: 100%; overflow: hidden; display: flex; justify-content: center; }
         canvas { background-color: #0a0f24; display: block; }
         
-        /* הקו המפריד למטה */
-        #bottom-divider { width: 100%; height: 4px; background: linear-gradient(90deg, transparent, #00ffff, transparent); box-shadow: 0 0 15px #00ffff; z-index: 60; }
+        /* קו ההגנה המעוצב */
+        #defense-line-container { position: relative; width: 100%; height: 10px; z-index: 60; }
+        #main-line { width: 100%; height: 3px; background: #00ffff; box-shadow: 0 0 15px #00ffff; position: absolute; top: 3px; }
+        #cross-line { width: 4px; height: 20px; background: #fff; position: absolute; left: 50%; top: -6px; transform: translateX(-50%); box-shadow: 0 0 10px #fff; border-radius: 2px; }
 
         #alert-container { position: absolute; left: 20px; top: 20px; width: 280px; pointer-events: none; z-index: 100; display: flex; flex-direction: column; gap: 10px; }
-        .alert-msg { background: rgba(200, 0, 0, 0.9); border-right: 6px solid #ff3333; padding: 15px; color: white; font-weight: bold; font-size: 16px; animation: slideIn 0.3s ease-out, fadeOut 4s forwards; border-radius: 5px; text-align: right; }
+        .alert-msg { background: rgba(200, 0, 0, 0.9); border-right: 6px solid #ff3333; padding: 15px; color: white; font-weight: bold; font-size: 16px; animation: slideIn 0.3s ease-out, fadeOut 4s forwards; border-radius: 5px; text-align: right; box-shadow: 0 0 15px rgba(255,0,0,0.5); }
         
         #laser-ui { width: 100%; height: 25px; background: #111; position: relative; z-index: 50; }
-        #laser-bar { height: 100%; width: 0%; background: #0088ff; transition: width 0.1s linear; box-shadow: 0 0 10px #0088ff; }
+        #laser-bar { height: 100%; width: 0%; background: #0088ff; transition: width 0.1s linear; }
         
         #restart-btn { display: none; position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); padding: 18px 45px; font-size: 26px; background: #fff; color: #000; border: 5px solid #00f; border-radius: 12px; cursor: pointer; font-weight: bold; z-index: 200; box-shadow: 0 0 20px #00f; }
-        #combo-display { position: absolute; right: 20px; top: 20px; color: #fff; font-size: 20px; font-weight: bold; text-shadow: 0 0 10px #00f; pointer-events: none; }
+        #combo-display { position: absolute; right: 20px; top: 15px; color: #fff; font-size: 20px; font-weight: bold; text-shadow: 0 0 10px #00f; pointer-events: none; }
+        
+        @keyframes slideIn { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-20px); } }
     </style>
 </head>
 <body>
@@ -37,7 +42,11 @@
         <button id="restart-btn" onclick="resetGame()">שחק שוב</button>
     </div>
     
-    <div id="bottom-divider"></div>
+    <div id="defense-line-container">
+        <div id="main-line"></div>
+        <div id="cross-line"></div>
+    </div>
+
     <div id="laser-ui">
         <div id="laser-bar"></div>
     </div>
@@ -56,7 +65,7 @@
 
     function resize() {
         canvas.width = Math.min(window.innerWidth, 800);
-        canvas.height = window.innerHeight - document.getElementById('ui-container').offsetHeight - 25 - 4;
+        canvas.height = window.innerHeight - document.getElementById('ui-container').offsetHeight - 25 - 10;
     }
     window.addEventListener('resize', resize); resize();
 
@@ -104,10 +113,20 @@
         }
     }
 
+    function triggerImpactAlert() {
+        const div = document.createElement('div'); div.className = 'alert-msg';
+        const city = cities[Math.floor(Math.random() * cities.length)];
+        const dead = Math.floor(Math.random() * 5) + 1;
+        const injured = Math.floor(Math.random() * 5) + 1;
+        div.innerHTML = `נפילה ב${city}, הרוגים ${dead} פצועים ${injured}`;
+        alertContainer.prepend(div);
+        setTimeout(() => { if(div.parentNode) div.remove(); }, 4000);
+    }
+
     function initVars() {
         score=0; shields=5; drones=[]; particles=[]; killStreak=0; bonusTexts=[]; gameOver=false;
         document.getElementById('shields-val').innerText = shields; document.getElementById('score-val').innerText = score;
-        killStreakUI.innerText = killStreak; restartBtn.style.display='none';
+        killStreakUI.innerText = killStreak; restartBtn.style.display='none'; alertContainer.innerHTML = '';
     }
 
     function updateMouse(e) {
@@ -137,34 +156,22 @@
 
             if(drones[i].hp >= drones[i].hpMax) {
                 for(let p=0; p<15; p++) particles.push(new Particle(drones[i].x, drones[i].y));
-                score += 100; 
-                killStreak++;
-                killStreakUI.innerText = killStreak;
+                score += 100; killStreak++; killStreakUI.innerText = killStreak;
 
-                // בונוס הריגת 5: מחסל 2 אחרים באופן מיידי
                 if(killStreak % 5 === 0) {
                     let targetsFound = 0;
-                    // מחפשים 2 כטב"מים אחרים שעדיין "חיים"
                     for(let j=drones.length-1; j>=0 && targetsFound < 2; j--) {
                         if(i !== j) { 
                             for(let p=0; p<20; p++) particles.push(new Particle(drones[j].x, drones[j].y));
-                            drones.splice(j, 1);
-                            targetsFound++;
-                            score += 50;
-                            // אם מחקנו אינדקס קטן מ-i, צריך לעדכן את i
-                            if(j < i) i--;
+                            drones.splice(j, 1); targetsFound++; score += 50; if(j < i) i--;
                         }
                     }
-                    if(targetsFound > 0) {
-                        bonusTexts.push({x: canvas.width/2, y: canvas.height/2, life: 1.0, text: "בונוס: 2-"});
-                    }
+                    if(targetsFound > 0) bonusTexts.push({x: canvas.width/2, y: canvas.height/2, life: 1.0, text: "בונוס: 2-"});
                 }
-
-                drones.splice(i,1);
-                document.getElementById('score-val').innerText = score;
+                drones.splice(i,1); document.getElementById('score-val').innerText = score;
             } else if(drones[i].y > canvas.height) {
                 drones.splice(i,1); shields--; killStreak=0; killStreakUI.innerText = killStreak;
-                document.getElementById('shields-val').innerText = shields;
+                triggerImpactAlert(); document.getElementById('shields-val').innerText = shields;
             }
         }
 
@@ -173,7 +180,6 @@
             if(particles[i].life <= 0) particles.splice(i,1);
         }
 
-        // ציור טקסט בונוס
         for(let i=bonusTexts.length-1; i>=0; i--) {
             ctx.save(); ctx.globalAlpha = bonusTexts[i].life; ctx.fillStyle="#00ffff"; ctx.font="bold 30px Arial";
             ctx.textAlign="center"; ctx.fillText(bonusTexts[i].text, bonusTexts[i].x, bonusTexts[i].y);
