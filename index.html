@@ -7,16 +7,13 @@
     <style>
         body {
             background-color: #050510; color: #00ffff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
             text-align: center; margin: 0; padding: 0;
             overflow: hidden; display: flex; flex-direction: column;
             height: 100vh; touch-action: none;
         }
-        #ui-container { padding: 10px; user-select: none; flex-shrink: 0; z-index: 5; }
-        #game-wrapper {
-            flex-grow: 1; position: relative; width: 100%;
-            display: flex; justify-content: center; align-items: center;
-        }
+        #ui-container { padding: 10px; user-select: none; z-index: 5; }
+        #game-wrapper { flex-grow: 1; position: relative; width: 100%; display: flex; justify-content: center; }
         canvas { background-color: #0a0f24; display: block; }
         #alert-container { position: absolute; right: 20px; top: 15%; width: 220px; pointer-events: none; z-index: 100; }
         .alert-msg {
@@ -28,20 +25,18 @@
         @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
         @keyframes fadeOut { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateX(20px); } }
         #restart-btn {
-            display: none; position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%);
-            padding: 15px 30px; font-size: 22px; background: #ffffff; color: #050510;
-            border: 3px solid #0000ff; border-radius: 5px; cursor: pointer; font-weight: bold; z-index: 200;
+            display: none; position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+            padding: 15px 30px; font-size: 22px; background: #fff; color: #000;
+            border: 3px solid #00f; border-radius: 5px; cursor: pointer; font-weight: bold; z-index: 200;
         }
     </style>
 </head>
 <body>
 
     <div id="ui-container">
-        <h1 style="margin:0; font-size: 24px; color: #fff; text-shadow: 0 0 15px #00f;">שאגת הארי : הגנה אווירית</h1>
-        <div style="font-size: 16px; color: #88ccff; margin-top:5px;">
-            שיא: <span id="high-score-val">0</span> | 
-            רצף: <span id="combo-val">0</span>/10 | 
-            הגנות: <span id="shields-val">5</span>
+        <h1 style="margin:0; font-size: 22px; color: #fff; text-shadow: 0 0 10px #00f;">שאגת הארי : הגנה אווירית</h1>
+        <div style="font-size: 14px; color: #88ccff;">
+            שיא: <span id="high-score-val">0</span> | רצף: <span id="combo-val">0</span>/10 | חיים: <span id="shields-val">5</span>
         </div>
     </div>
 
@@ -57,68 +52,57 @@
         const restartBtn = document.getElementById('restart-btn');
         const alertContainer = document.getElementById('alert-container');
 
-        let score, shields, drones, particles, gameOver, combo, sTimer;
-        let flashOpacity = 0, mouseX = 0, mouseY = 0;
+        let score, shields, drones, particles, gameOver, combo, sTimer, flash = 0, mx = 0, my = 0;
         let highScore = localStorage.getItem('droneHS') || 0;
         document.getElementById('high-score-val').innerText = highScore;
 
-        const cities = ["תל אביב", "חיפה", "אשקלון", "באר שבע", "נהריה", "שדרות", "ירושלים", "אשדוד"];
-
         function resize() {
-            const wrapper = document.getElementById('game-wrapper');
-            canvas.width = Math.min(window.innerWidth, 850);
-            canvas.height = wrapper.clientHeight;
+            canvas.width = Math.min(window.innerWidth, 800);
+            canvas.height = document.getElementById('game-wrapper').clientHeight;
         }
         window.onresize = resize; resize();
 
-        function drawStar(x, y, size, col) {
+        function drawStar(x, y, s, col) {
             ctx.save(); ctx.translate(x, y); ctx.strokeStyle = col; ctx.lineWidth = 2;
             for(let i=0; i<2; i++) {
                 ctx.beginPath(); ctx.rotate(Math.PI);
-                ctx.moveTo(0, -size); ctx.lineTo(size*0.8, size*0.5); ctx.lineTo(-size*0.8, size*0.5);
+                ctx.moveTo(0, -s); ctx.lineTo(s*0.8, s*0.5); ctx.lineTo(-s*0.8, s*0.5);
                 ctx.closePath(); ctx.stroke();
             } ctx.restore();
-        }
-
-        class Particle {
-            constructor(x, y) {
-                this.x = x; this.y = y; this.color = Math.random() > 0.5 ? "#fff" : "#00f";
-                this.size = Math.random() * 8 + 4;
-                this.sx = (Math.random()-0.5)*12; this.sy = (Math.random()-0.5)*12;
-                this.life = 1.0;
-            }
-            update() { this.x+=this.sx; this.y+=this.sy; this.life-=0.03; }
-            draw() { ctx.globalAlpha=this.life; drawStar(this.x,this.y,this.size,this.color); ctx.globalAlpha=1; }
         }
 
         class Drone {
             constructor() {
                 let r = Math.random();
-                if (r < 0.2) { this.type='fast'; this.col='#cc00ff'; this.size=15; this.speed=2.8; this.hpMax=50; }
-                else if (r < 0.4) { this.type='tank'; this.col='#ffcc00'; this.size=26; this.speed=0.9; this.hpMax=180; } // הצהוב לוקח זמן!
-                else { this.type='norm'; this.col='#ff4444'; this.size=19; this.speed=1.4; this.hpMax=70; }
+                if (r < 0.2) { this.col = '#cc00ff'; this.speed = 3.0; this.hpMax = 20; } // מהיר - מת מייד
+                else if (r < 0.4) { this.col = '#ffcc00'; this.speed = 1.0; this.hpMax = 60; } // צהוב - קצת יותר חיים
+                else { this.col = '#ff4444'; this.speed = 1.6; this.hpMax = 30; } // אדום - רגיל
                 this.x = Math.random()*(canvas.width-60)+30; this.y = -40; this.hp = 0;
             }
             update() {
                 this.y += this.speed;
-                let d = Math.sqrt((this.x-mouseX)**2 + (this.y-mouseY)**2);
-                if (d < 60) this.hp += (sTimer > 0 ? 8 : 3.5);
-                else this.hp = Math.max(0, this.hp - 2);
+                let d = Math.sqrt((this.x-mx)**2 + (this.y-my)**2);
+                if (d < 50) this.hp += (sTimer > 0 ? 10 : 5); // מהירות הורדה גבוהה מאוד
+                else this.hp = Math.max(0, this.hp - 1);
             }
             draw() {
-                ctx.fillStyle = this.col; ctx.fillRect(this.x-this.size, this.y-6, this.size*2, 12);
+                // ציור רחפן
+                ctx.fillStyle = this.col;
+                ctx.fillRect(this.x-15, this.y-4, 30, 8); // גוף
+                ctx.fillStyle = "#fff";
+                ctx.fillRect(this.x-22, this.y-8, 6, 2); ctx.fillRect(this.x+16, this.y-8, 6, 2); // מנועים עליונים
+                ctx.fillRect(this.x-22, this.y+6, 6, 2); ctx.fillRect(this.x+16, this.y+6, 6, 2); // מנועים תחתוניים
+                
                 if(this.hp > 0) {
-                    ctx.fillStyle="#333"; ctx.fillRect(this.x-15, this.y-22, 30, 4);
-                    ctx.fillStyle=this.hp>=this.hpMax?"#fff":"#0ff";
-                    ctx.fillRect(this.x-15, this.y-22, (Math.min(this.hp,this.hpMax)/this.hpMax)*30, 4);
+                    ctx.fillStyle="#0ff"; ctx.fillRect(this.x-15, this.y-15, (this.hp/this.hpMax)*30, 3);
                 }
             }
         }
 
         function triggerAlert() {
             const div = document.createElement('div'); div.className = 'alert-msg';
-            div.innerHTML = `נפילה ב${cities[Math.floor(Math.random()*cities.length)]}<br>⚠️ נזק כבד לרכוש`;
-            alertContainer.prepend(div); setTimeout(() => div.remove(), 3000);
+            div.innerHTML = `נפילה באזור מגורים!<br>⚠️ נזק כבד`;
+            alertContainer.prepend(div); setTimeout(() => div.remove(), 2500);
         }
 
         function initVars() {
@@ -128,8 +112,8 @@
             restartBtn.style.display='none';
         }
 
-        canvas.onmousemove = e => { let r=canvas.getBoundingClientRect(); mouseX=e.clientX-r.left; mouseY=e.clientY-r.top; };
-        canvas.ontouchmove = e => { e.preventDefault(); let r=canvas.getBoundingClientRect(); mouseX=e.touches[0].clientX-r.left; mouseY=e.touches[0].clientY-r.top; };
+        canvas.onmousemove = e => { let r=canvas.getBoundingClientRect(); mx=e.clientX-r.left; my=e.clientY-r.top; };
+        canvas.ontouchmove = e => { e.preventDefault(); let r=canvas.getBoundingClientRect(); mx=e.touches[0].clientX-r.left; my=e.touches[0].clientY-r.top; };
 
         function resetGame() { initVars(); loop(); }
 
@@ -138,10 +122,10 @@
             ctx.clearRect(0,0,canvas.width,canvas.height);
 
             if (shields <= 0) {
-                gameOver=true; ctx.fillStyle='red'; ctx.font='bold 40px Arial'; ctx.textAlign='center';
+                gameOver=true; ctx.fillStyle='red'; ctx.font='bold 30px Arial'; ctx.textAlign='center';
                 ctx.fillText("המערכת קרסה", canvas.width/2, canvas.height/2);
                 restartBtn.style.display='block';
-                if(score > highScore) localStorage.setItem('droneHS', score); return;
+                return;
             }
 
             if(sTimer > 0) sTimer--;
@@ -152,8 +136,7 @@
                 drones[i].update(); drones[i].draw();
                 if(drones[i].hp > 0) firing = true;
                 if(drones[i].hp >= drones[i].hpMax) {
-                    for(let j=0; j<10; j++) particles.push(new Particle(drones[i].x, drones[i].y));
-                    score+=100; drones.splice(i,1); flashOpacity=0.2;
+                    score+=100; drones.splice(i,1); flash=0.2;
                     if(sTimer <= 0) { combo++; if(combo>=10){sTimer=180; combo=0;} }
                     document.getElementById('combo-val').innerText = combo;
                 } else if(drones[i].y > canvas.height) {
@@ -163,21 +146,16 @@
                 }
             }
 
-            for(let i=particles.length-1; i>=0; i--) {
-                particles[i].update(); particles[i].draw();
-                if(particles[i].life<=0) particles.splice(i,1);
-            }
-
             if(firing) {
                 ctx.lineWidth = sTimer > 0 ? 12 : 4;
-                let g = ctx.createLinearGradient(canvas.width/2, canvas.height, mouseX, mouseY);
+                let g = ctx.createLinearGradient(canvas.width/2, canvas.height, mx, my);
                 g.addColorStop(0, "#00f"); g.addColorStop(1, "#fff"); ctx.strokeStyle = g;
-                ctx.beginPath(); ctx.moveTo(canvas.width/2, canvas.height); ctx.lineTo(mouseX, mouseY); ctx.stroke();
-                drawStar(mouseX, mouseY, 15, Math.random()>0.5?"#fff":"#00f");
+                ctx.beginPath(); ctx.moveTo(canvas.width/2, canvas.height); ctx.lineTo(mx, my); ctx.stroke();
+                drawStar(mx, my, 15, "#fff");
             }
 
-            if(flashOpacity > 0) { ctx.fillStyle=`rgba(255,255,255,${flashOpacity})`; ctx.fillRect(0,0,canvas.width,canvas.height); flashOpacity-=0.05; }
-            ctx.fillStyle="#0ff"; ctx.font="bold 16px Arial"; ctx.textAlign="right"; ctx.fillText(`ניקוד: ${score}`, canvas.width-20, 30);
+            if(flash > 0) { ctx.fillStyle=`rgba(255,255,255,${flash})`; ctx.fillRect(0,0,canvas.width,canvas.height); flash-=0.05; }
+            ctx.fillStyle="#0ff"; ctx.font="16px Arial"; ctx.textAlign="right"; ctx.fillText(`ניקוד: ${score}`, canvas.width-20, 30);
             requestAnimationFrame(loop);
         }
 
