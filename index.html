@@ -17,18 +17,16 @@
         #alert-container { position: absolute; left: 20px; top: 20px; width: 280px; pointer-events: none; z-index: 100; display: flex; flex-direction: column; gap: 10px; }
         .alert-msg { background: rgba(200, 0, 0, 0.9); border-right: 6px solid #ff3333; padding: 12px; color: white; font-weight: bold; font-size: 14px; animation: slideIn 0.3s ease-out, fadeOut 4s forwards; border-radius: 5px; text-align: right; }
         
-        /* הודעת כיפת ברזל וחץ */
-        #special-msg { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); width: 80%; background: rgba(0, 50, 150, 0.9); color: white; border: 4px solid #00ffff; padding: 20px; border-radius: 20px; font-size: 24px; font-weight: bold; display: none; z-index: 150; box-shadow: 0 0 30px #00ffff; text-shadow: 0 0 10px #fff; pointer-events: none; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        #special-msg { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); width: 85%; background: rgba(0, 80, 200, 0.95); color: white; border: 5px solid #fff; padding: 25px; border-radius: 20px; font-size: 28px; font-weight: bold; display: none; z-index: 150; box-shadow: 0 0 40px #00ffff; text-shadow: 0 0 10px #fff; pointer-events: none; }
 
         #laser-ui { width: 100%; height: 25px; background: #111; position: relative; z-index: 50; }
         #laser-bar { height: 100%; width: 0%; background: #0088ff; transition: width 0.1s linear; }
         
-        #restart-btn { display: none; position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); padding: 18px 45px; font-size: 26px; background: #fff; color: #000; border: 5px solid #00f; border-radius: 12px; cursor: pointer; font-weight: bold; z-index: 200; box-shadow: 0 0 20px #00f; }
+        #restart-btn { display: none; position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); padding: 18px 45px; font-size: 26px; background: #fff; color: #000; border: 5px solid #00f; border-radius: 12px; cursor: pointer; font-weight: bold; z-index: 200; box-shadow: 0 0 20px #00f; }
         #combo-display { position: absolute; right: 20px; top: 15px; color: #fff; font-size: 18px; font-weight: bold; text-shadow: 0 0 10px #00f; pointer-events: none; }
         
         @keyframes slideIn { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes fadeOut { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-20px); } }
-        @keyframes popIn { from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
@@ -77,13 +75,13 @@
     class Particle {
         constructor(x, y, color = null) {
             this.x = x; this.y = y;
-            this.size = Math.random() * 6 + 4;
-            this.vx = (Math.random() - 0.5) * 12;
-            this.vy = (Math.random() - 0.5) * 12;
+            this.size = Math.random() * 8 + 4;
+            this.vx = (Math.random() - 0.5) * 15;
+            this.vy = (Math.random() - 0.5) * 15;
             this.color = color || (Math.random() > 0.5 ? "#ffffff" : "#00ffff");
             this.life = 1.0;
         }
-        update() { this.x += this.vx; this.y += this.vy; this.life -= 0.03; }
+        update() { this.x += this.vx; this.y += this.vy; this.life -= 0.025; }
         draw() {
             ctx.save(); ctx.globalAlpha = this.life; ctx.translate(this.x, this.y); ctx.rotate(this.life * 5);
             ctx.strokeStyle = this.color; ctx.lineWidth = 2;
@@ -100,18 +98,27 @@
             let r = Math.random();
             this.zigzag = Math.random() < 0.25;
             this.zigzagPhase = Math.random() * Math.PI * 2;
-            if (r < 0.2) { this.type='fast'; this.speed=3.6; this.hpMax=40; } 
-            else if (r < 0.4) { this.type='tank'; this.speed=1.6; this.hpMax=300; } 
-            else { this.type='norm'; this.speed=2.8; this.hpMax=140; } 
-            this.x = Math.random()*(canvas.width-100)+50; this.y = -60; this.hp = 0; this.baseX = this.x;
+            this.zigzagSpeed = 0.08; // מהירות תנועה לצדדים גדולה יותר
+            
+            if (r < 0.2) { this.type='fast'; this.speed=3.8; this.hpMax=40; } 
+            else if (r < 0.4) { this.type='tank'; this.speed=1.8; this.hpMax=300; } 
+            else { this.type='norm'; this.speed=3.0; this.hpMax=140; } 
+            
+            this.x = Math.random()*(canvas.width-160)+80; 
+            this.y = -60; 
+            this.hp = 0;
+            this.baseX = this.x;
         }
         update() {
             this.y += this.speed;
-            if (this.zigzag) { this.zigzagPhase += 0.05; this.x = this.baseX + Math.sin(this.zigzagPhase) * 50; }
+            if (this.zigzag) {
+                this.zigzagPhase += this.zigzagSpeed;
+                this.x = this.baseX + Math.sin(this.zigzagPhase) * 80; // טווח תנועה גדול יותר
+            }
             if (Math.sqrt((this.x-mx)**2 + (this.y-my)**2) < 45) this.hp += baseLaserPower;
         }
         draw() {
-            if (this.zigzag) { ctx.shadowBlur = 10; ctx.shadowColor = "#ff00ff"; }
+            if (this.zigzag) { ctx.shadowBlur = 15; ctx.shadowColor = "#ff00ff"; }
             ctx.strokeStyle = "#777"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(this.x-20, this.y-12); ctx.lineTo(this.x+20, this.y+12); ctx.moveTo(this.x+20, this.y-12); ctx.lineTo(this.x-20, this.y+12); ctx.stroke();
             let w = 34, h = 16, cL, cM, cR;
             if(this.type === 'norm') { cR='#f00'; cM='#007a3d'; cL='#fff'; } 
@@ -126,24 +133,23 @@
     function triggerImpactAlert() {
         const div = document.createElement('div'); div.className = 'alert-msg';
         const city = cities[Math.floor(Math.random() * cities.length)];
-        const dead = Math.floor(Math.random() * 4) + 1;
-        const injured = Math.floor(Math.random() * 10) + 2;
-        div.innerHTML = `נפילה ב${city}<br>הרוגים: ${dead} | פצועים: ${injured}`;
+        div.innerHTML = `נפילה ב${city}<br>הרוגים: ${Math.floor(Math.random()*3)+1} | פצועים: ${Math.floor(Math.random()*6)+2}`;
         alertContainer.prepend(div);
         setTimeout(() => { if(div.parentNode) div.remove(); }, 4000);
     }
 
     function triggerClearSky() {
         specialMsg.style.display = 'block';
+        // פיצוץ עבור כל כטב"ם
         for(let d of drones) {
-            for(let p=0; p<15; p++) particles.push(new Particle(d.x, d.y, "#00ffff"));
+            for(let p=0; p<20; p++) particles.push(new Particle(d.x, d.y, "#ffffff"));
         }
         drones = [];
         setTimeout(() => { specialMsg.style.display = 'none'; }, 3000);
     }
 
     function initVars() {
-        score=0; shields=5; drones=[]; particles=[]; killStreak=0; bonusTexts=[]; lastMilestone=0; gameOver=false;
+        score=0; shields=5; drones=[]; particles=[]; killStreak=0; bonusTexts=[]; lastMilestone = 0; gameOver=false;
         document.getElementById('shields-val').innerText = shields; document.getElementById('score-val').innerText = score;
         killStreakUI.innerText = killStreak; restartBtn.style.display='none'; alertContainer.innerHTML = '';
     }
@@ -166,13 +172,13 @@
             ctx.fillText("הבסיס הושמד!", canvas.width/2, canvas.height/2); restartBtn.style.display='block'; return;
         }
 
-        // בדיקת ניקוד להודעה מיוחדת
-        if (score >= lastMilestone + 5000) {
+        // בדיקת בונוס 5000
+        if (score >= lastMilestone + 5000 && score > 0) {
             lastMilestone += 5000;
             triggerClearSky();
         }
 
-        let spawnChance = drones.length > 5 ? 0.005 : 0.02;
+        let spawnChance = drones.length > 5 ? 0.005 : 0.025;
         if(Math.random() < spawnChance && drones.length < 10) drones.push(new Drone());
 
         let firing = false;
@@ -183,12 +189,17 @@
             if(drones[i].hp >= drones[i].hpMax) {
                 for(let p=0; p<15; p++) particles.push(new Particle(drones[i].x, drones[i].y));
                 score += 100; killStreak++; killStreakUI.innerText = killStreak;
+                
+                // בונוס 5 הריגות
                 if(killStreak % 5 === 0) {
-                    let targetsFound = 0;
-                    for(let j=drones.length-1; j>=0 && targetsFound < 2; j--) {
-                        if(i !== j) { for(let p=0; p<20; p++) particles.push(new Particle(drones[j].x, drones[j].y)); drones.splice(j, 1); targetsFound++; score += 50; if(j < i) i--; }
+                    let killed = 0;
+                    for(let j=drones.length-1; j>=0 && killed < 2; j--) {
+                        if(i !== j) { 
+                            for(let p=0; p<20; p++) particles.push(new Particle(drones[j].x, drones[j].y, "white"));
+                            drones.splice(j, 1); killed++; score += 50; if(j < i) i--;
+                        }
                     }
-                    if(targetsFound > 0) bonusTexts.push({x: canvas.width/2, y: canvas.height/2, life: 1.0, text: "בונוס רצף: 2-"});
+                    if(killed > 0) bonusTexts.push({x: canvas.width/2, y: canvas.height/2, life: 1.0, text: "בונוס רצף: 2-"});
                 }
                 drones.splice(i,1); document.getElementById('score-val').innerText = score;
             } else if(drones[i].y > canvas.height) {
