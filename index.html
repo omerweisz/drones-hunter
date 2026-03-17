@@ -36,7 +36,7 @@
     <div id="ui-container">
         <h1 style="margin:0; font-size: 22px; color: #fff; text-shadow: 0 0 10px #00f;">שאגת הארי : הגנה אווירית</h1>
         <div style="font-size: 14px; color: #88ccff;">
-            שיא: <span id="high-score-val">0</span> | רצף: <span id="combo-val">0</span>/10 | חיים: <span id="shields-val">5</span>
+            שיא: <span id="high-score-val">0</span> | רצף לייזר: <span id="combo-val">0</span>/3 | חיים: <span id="shields-val">5</span>
         </div>
     </div>
 
@@ -71,37 +71,59 @@
             } ctx.restore();
         }
 
+        class Particle {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.color = Math.random() > 0.5 ? "#fff" : "#00f";
+                this.size = Math.random() * 8 + 4;
+                this.sx = (Math.random()-0.5)*15; this.sy = (Math.random()-0.5)*15;
+                this.life = 1.0;
+            }
+            update() { this.x+=this.sx; this.y+=this.sy; this.life-=0.04; }
+            draw() { ctx.globalAlpha=this.life; drawStar(this.x,this.y,this.size,this.color); ctx.globalAlpha=1; }
+        }
+
         class Drone {
             constructor() {
                 let r = Math.random();
-                if (r < 0.2) { this.col = '#cc00ff'; this.speed = 3.0; this.hpMax = 20; } // מהיר - מת מייד
-                else if (r < 0.4) { this.col = '#ffcc00'; this.speed = 1.0; this.hpMax = 60; } // צהוב - קצת יותר חיים
-                else { this.col = '#ff4444'; this.speed = 1.6; this.hpMax = 30; } // אדום - רגיל
-                this.x = Math.random()*(canvas.width-60)+30; this.y = -40; this.hp = 0;
+                if (r < 0.2) { this.col = '#cc00ff'; this.speed = 3.2; this.hpMax = 10; } // סגול - מהיר מאוד
+                else if (r < 0.4) { this.col = '#ffcc00'; this.speed = 1.1; this.hpMax = 35; } // צהוב - טנק (קצת יותר HP)
+                else { this.col = '#ff4444'; this.speed = 1.7; this.hpMax = 15; } // אדום - רגיל
+                this.x = Math.random()*(canvas.width-60)+30; this.y = -50; this.hp = 0;
             }
             update() {
                 this.y += this.speed;
                 let d = Math.sqrt((this.x-mx)**2 + (this.y-my)**2);
-                if (d < 50) this.hp += (sTimer > 0 ? 10 : 5); // מהירות הורדה גבוהה מאוד
+                if (d < 55) this.hp += (sTimer > 0 ? 15 : 8); // הורדה מהירה מאוד!
                 else this.hp = Math.max(0, this.hp - 1);
             }
             draw() {
-                // ציור רחפן
-                ctx.fillStyle = this.col;
-                ctx.fillRect(this.x-15, this.y-4, 30, 8); // גוף
-                ctx.fillStyle = "#fff";
-                ctx.fillRect(this.x-22, this.y-8, 6, 2); ctx.fillRect(this.x+16, this.y-8, 6, 2); // מנועים עליונים
-                ctx.fillRect(this.x-22, this.y+6, 6, 2); ctx.fillRect(this.x+16, this.y+6, 6, 2); // מנועים תחתוניים
+                // גוף הרחפן
+                ctx.strokeStyle = "#888"; ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(this.x-18, this.y-10); ctx.lineTo(this.x+18, this.y+10);
+                ctx.moveTo(this.x+18, this.y-10); ctx.lineTo(this.x-18, this.y+10);
+                ctx.stroke();
                 
+                // מרכז הרחפן
+                ctx.fillStyle = this.col;
+                ctx.beginPath(); ctx.arc(this.x, this.y, 8, 0, Math.PI*2); ctx.fill();
+                
+                // מנועים (לבנים)
+                ctx.fillStyle = "#fff";
+                [[-18,-10], [18,-10], [-18,10], [18,10]].forEach(p => {
+                    ctx.fillRect(this.x+p[0]-4, this.y+p[1]-1, 8, 2);
+                });
+
                 if(this.hp > 0) {
-                    ctx.fillStyle="#0ff"; ctx.fillRect(this.x-15, this.y-15, (this.hp/this.hpMax)*30, 3);
+                    ctx.fillStyle="#0ff"; ctx.fillRect(this.x-15, this.y-20, (this.hp/this.hpMax)*30, 3);
                 }
             }
         }
 
         function triggerAlert() {
             const div = document.createElement('div'); div.className = 'alert-msg';
-            div.innerHTML = `נפילה באזור מגורים!<br>⚠️ נזק כבד`;
+            const city = ["ת"א", "חיפה", "אשקלון", "נהריה"][Math.floor(Math.random()*4)];
+            div.innerHTML = `נפילה ב${city}!<br>⚠️ פצועים ופגיעה במבנה`;
             alertContainer.prepend(div); setTimeout(() => div.remove(), 2500);
         }
 
@@ -122,22 +144,26 @@
             ctx.clearRect(0,0,canvas.width,canvas.height);
 
             if (shields <= 0) {
-                gameOver=true; ctx.fillStyle='red'; ctx.font='bold 30px Arial'; ctx.textAlign='center';
-                ctx.fillText("המערכת קרסה", canvas.width/2, canvas.height/2);
+                gameOver=true; ctx.fillStyle='red'; ctx.font='bold 35px Arial'; ctx.textAlign='center';
+                ctx.fillText("ההגנה נפרצה!", canvas.width/2, canvas.height/2);
                 restartBtn.style.display='block';
                 return;
             }
 
             if(sTimer > 0) sTimer--;
-            if(Math.random() < 0.04) drones.push(new Drone());
+            if(Math.random() < 0.045) drones.push(new Drone());
 
             let firing = false;
             for(let i=drones.length-1; i>=0; i--) {
                 drones[i].update(); drones[i].draw();
                 if(drones[i].hp > 0) firing = true;
                 if(drones[i].hp >= drones[i].hpMax) {
+                    for(let j=0; j<8; j++) particles.push(new Particle(drones[i].x, drones[i].y));
                     score+=100; drones.splice(i,1); flash=0.2;
-                    if(sTimer <= 0) { combo++; if(combo>=10){sTimer=180; combo=0;} }
+                    if(sTimer <= 0) { 
+                        combo++; 
+                        if(combo>=3){ sTimer=180; combo=0; } // סופר לייזר כל 3!
+                    }
                     document.getElementById('combo-val').innerText = combo;
                 } else if(drones[i].y > canvas.height) {
                     drones.splice(i,1); shields--; triggerAlert(); combo=0;
@@ -146,16 +172,21 @@
                 }
             }
 
+            for(let i=particles.length-1; i>=0; i--) {
+                particles[i].update(); particles[i].draw();
+                if(particles[i].life<=0) particles.splice(i,1);
+            }
+
             if(firing) {
-                ctx.lineWidth = sTimer > 0 ? 12 : 4;
+                ctx.lineWidth = sTimer > 0 ? 14 : 5;
                 let g = ctx.createLinearGradient(canvas.width/2, canvas.height, mx, my);
                 g.addColorStop(0, "#00f"); g.addColorStop(1, "#fff"); ctx.strokeStyle = g;
                 ctx.beginPath(); ctx.moveTo(canvas.width/2, canvas.height); ctx.lineTo(mx, my); ctx.stroke();
-                drawStar(mx, my, 15, "#fff");
+                drawStar(mx, my, 18, "#fff");
             }
 
             if(flash > 0) { ctx.fillStyle=`rgba(255,255,255,${flash})`; ctx.fillRect(0,0,canvas.width,canvas.height); flash-=0.05; }
-            ctx.fillStyle="#0ff"; ctx.font="16px Arial"; ctx.textAlign="right"; ctx.fillText(`ניקוד: ${score}`, canvas.width-20, 30);
+            ctx.fillStyle="#0ff"; ctx.font="bold 18px Arial"; ctx.textAlign="right"; ctx.fillText(`ניקוד: ${score}`, canvas.width-20, 30);
             requestAnimationFrame(loop);
         }
 
