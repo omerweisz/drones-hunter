@@ -55,7 +55,7 @@
 
     let score, shields, drones, gameOver, combo, lastBonusScore;
     
-    let baseLaserPower = 3.2; 
+    let baseLaserPower = 4.5; // לייזר חזק יותר להריגה מהירה
     let laserPower = baseLaserPower; 
     let isLaserCharged = false, isCooldown = false;
     let laserTimer = 0; 
@@ -74,10 +74,10 @@
     class Drone {
         constructor() {
             let r = Math.random();
-            // המהירויות עודכנו כדי שלא יהיה מהיר מדי
-            if (r < 0.3) { this.type='fast'; this.speed=3.8; this.hpMax=75; } // סגול - מהיר אבל סביר
+            // המהירויות סונכרנו כדי למנוע מצבים בלתי אפשריים
+            if (r < 0.3) { this.type='fast'; this.speed=3.4; this.hpMax=80; } // סגול - מהיר במידה
             else if (r < 0.5) { this.type='tank'; this.speed=1.8; this.hpMax=280; } // צהוב - איטי ועמיד
-            else { this.type='norm'; this.speed=3.0; this.hpMax=130; } // אדום - רגיל
+            else { this.type='norm'; this.speed=2.7; this.hpMax=130; } // אדום - רגיל
             this.x = Math.random()*(canvas.width-80)+40; this.y = -60; this.hp = 0;
         }
         update() {
@@ -165,7 +165,6 @@
         }
         updateLaserUI();
 
-        // תדירות הופעה מאוזנת (0.018) כדי למנוע עומס
         if(Math.random() < 0.018) drones.push(new Drone());
 
         if(score >= lastBonusScore + 5000 && score > 0) {
@@ -185,7 +184,7 @@
                 if(!isLaserCharged && !isCooldown) {
                     combo++;
                     if(combo >= 10) { 
-                        combo = 0; isLaserCharged = true; laserPower = 25; laserTimer = POWER_FRAMES; 
+                        combo = 0; isLaserCharged = true; laserPower = 30; laserTimer = POWER_FRAMES; 
                     }
                 }
                 document.getElementById('score-val').innerText = score;
