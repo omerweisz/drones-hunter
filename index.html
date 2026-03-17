@@ -10,14 +10,11 @@
         #game-wrapper { flex-grow: 1; position: relative; width: 100%; overflow: hidden; display: flex; justify-content: center; }
         canvas { background-color: #0a0f24; display: block; }
         
-        /* הודעות נפילה - צד שמאל למעלה (כדי שלא יסתיר את הלייזר) */
         #alert-container { position: absolute; left: 20px; top: 20px; width: 280px; pointer-events: none; z-index: 100; display: flex; flex-direction: column; gap: 10px; }
         .alert-msg { background: rgba(200, 0, 0, 0.9); border-right: 6px solid #ff3333; padding: 15px; color: white; font-weight: bold; font-size: 16px; animation: slideIn 0.3s ease-out, fadeOut 4s forwards; border-radius: 5px; text-align: right; box-shadow: 0 0 15px rgba(255,0,0,0.6); }
         
-        /* הודעת מערכת 5000 */
         #system-msg { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); width: 85%; font-size: 26px; color: #fff; font-weight: bold; text-shadow: 0 0 20px #f00; display: none; pointer-events: none; z-index: 110; text-align: center; background: rgba(0,0,0,0.85); padding: 25px; border-radius: 15px; border: 3px solid #00f; line-height: 1.4; }
         
-        /* פס טעינה בתחתית המסך */
         #laser-ui { width: 100%; height: 25px; background: #111; border-top: 3px solid #333; position: relative; z-index: 50; }
         #laser-bar { height: 100%; width: 0%; background: #0088ff; transition: width 0.1s linear, background-color 0.2s; box-shadow: 0 0 10px #0088ff; }
         
@@ -58,8 +55,7 @@
 
     let score, shields, drones, gameOver, combo, lastBonusScore;
     
-    // כוח הלייזר הותאם כדי שייקח זמן סביר (לא מהר מדי ולא לאט מדי)
-    let baseLaserPower = 3.5; 
+    let baseLaserPower = 2.5; // כוח מאוזן לזמן הריגה נורמלי
     let laserPower = baseLaserPower; 
     let isLaserCharged = false, isCooldown = false;
     let laserTimer = 0; 
@@ -71,7 +67,6 @@
 
     function resize() {
         canvas.width = Math.min(window.innerWidth, 800);
-        // מחשב את הגובה כך שישאיר מקום לפס הלייזר למטה
         canvas.height = window.innerHeight - document.getElementById('ui-container').offsetHeight - document.getElementById('laser-ui').offsetHeight;
     }
     window.addEventListener('resize', resize); resize();
@@ -79,10 +74,10 @@
     class Drone {
         constructor() {
             let r = Math.random();
-            // HP תואם כדי ליצור זמן הריגה כיפי
-            if (r < 0.3) { this.type='fast'; this.speed=4.5; this.hpMax=80; } // סגול (מהיר וחלש)
-            else if (r < 0.5) { this.type='tank'; this.speed=1.4; this.hpMax=260; } // צהוב (איטי וחזק)
-            else { this.type='norm'; this.speed=2.6; this.hpMax=140; } // אדום (רגיל)
+            // המהירויות הועלו משמעותית כדי שיהיה אקשן
+            if (r < 0.3) { this.type='fast'; this.speed=6.0; this.hpMax=80; } // סגול (מהיר جدا)
+            else if (r < 0.5) { this.type='tank'; this.speed=2.2; this.hpMax=260; } // צהוב (טנק, עכשיו זז מהר יותר)
+            else { this.type='norm'; this.speed=3.8; this.hpMax=140; } // אדום (רגיל)
             this.x = Math.random()*(canvas.width-80)+40; this.y = -60; this.hp = 0;
         }
         update() {
@@ -106,12 +101,10 @@
         const div = document.createElement('div');
         div.className = 'alert-msg';
         const city = cities[Math.floor(Math.random() * cities.length)];
-        const dead = Math.floor(Math.random() * 5) + 1; // בין 1 ל-5
-        const injured = Math.floor(Math.random() * 5) + 1; // בין 1 ל-5
+        const dead = Math.floor(Math.random() * 5) + 1;
+        const injured = Math.floor(Math.random() * 5) + 1;
         div.innerHTML = `נפילה ב${city}, הרוגים ${dead} פצועים ${injured}`;
         alertContainer.prepend(div);
-        
-        // מחיקת ההודעה אחרי 4 שניות כדי שלא יציף את המסך
         setTimeout(() => { if(div.parentNode) div.remove(); }, 4000);
     }
 
@@ -120,24 +113,22 @@
         laserPower = baseLaserPower; isLaserCharged = false; isCooldown = false; laserTimer = 0;
         document.getElementById('shields-val').innerText = shields; document.getElementById('score-val').innerText = score;
         restartBtn.style.display='none';
-        alertContainer.innerHTML = ''; // מנקה התראות ישנות
+        alertContainer.innerHTML = ''; 
         updateLaserUI();
     }
 
-    // מעדכן את הפס הנטען למטה בהתאם למצב
     function updateLaserUI() {
         if (isLaserCharged) {
             laserBar.style.width = (laserTimer / POWER_FRAMES * 100) + '%';
-            laserBar.style.backgroundColor = '#ffcc00'; // צבע זהב ללייזר חזק
+            laserBar.style.backgroundColor = '#ffcc00'; 
             laserBar.style.boxShadow = '0 0 15px #ffcc00';
         } else if (isCooldown) {
             laserBar.style.width = (laserTimer / COOLDOWN_FRAMES * 100) + '%';
-            laserBar.style.backgroundColor = '#ff0000'; // אדום בקירור
+            laserBar.style.backgroundColor = '#ff0000'; 
             laserBar.style.boxShadow = '0 0 10px #ff0000';
         } else {
-            // טעינה רגילה לפי מספר ההפלות (מתוך 10)
             laserBar.style.width = (combo / 10 * 100) + '%';
-            laserBar.style.backgroundColor = '#0088ff'; // כחול רגיל
+            laserBar.style.backgroundColor = '#0088ff'; 
             laserBar.style.boxShadow = '0 0 10px #0088ff';
         }
     }
@@ -161,7 +152,6 @@
             restartBtn.style.display='block'; return;
         }
 
-        // ניהול זמני הלייזר
         if (isLaserCharged) {
             laserTimer--;
             if (laserTimer <= 0) {
@@ -175,10 +165,9 @@
         }
         updateLaserUI();
 
-        // קצב הופעה הגיוני
-        if(Math.random() < 0.008) drones.push(new Drone());
+        // קצב הופעה הוגבר (יותר אקשן, יופיעו במקביל)
+        if(Math.random() < 0.02) drones.push(new Drone());
 
-        // בונוס 5000 - השמדת כל הכטב"מים
         if(score >= lastBonusScore + 5000 && score > 0) {
             lastBonusScore += 5000; systemMsg.style.display = 'block';
             drones.forEach(d => { d.hp = d.hpMax; }); 
@@ -193,16 +182,15 @@
             if(drones[i].hp >= drones[i].hpMax) {
                 score += 100; drones.splice(i,1);
                 
-                // ספירת קומבו רק אם הלייזר לא טעון ולא בקירור
                 if(!isLaserCharged && !isCooldown) {
                     combo++;
                     if(combo >= 10) { 
-                        combo = 0; isLaserCharged = true; laserPower = 20; laserTimer = POWER_FRAMES; // כוח מתפרץ חזק במיוחד
+                        combo = 0; isLaserCharged = true; laserPower = 25; laserTimer = POWER_FRAMES; 
                     }
                 }
                 document.getElementById('score-val').innerText = score;
             } else if(drones[i].y > canvas.height) {
-                drones.splice(i,1); shields--; combo=0; triggerImpactAlert(); // הפעלת הודעת הנפילה
+                drones.splice(i,1); shields--; combo=0; triggerImpactAlert(); 
                 document.getElementById('shields-val').innerText = shields;
             }
         }
