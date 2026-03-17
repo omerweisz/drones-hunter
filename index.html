@@ -35,17 +35,19 @@
         }
         #powerup-bar {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            width: 220px; height: 12px; background: rgba(0,0,0,0.5); border: 2px solid #fff;
-            display: none; border-radius: 10px; overflow: hidden;
+            width: 250px; height: 15px; background: rgba(255,255,255,0.1); border: 2px solid #fff;
+            display: none; border-radius: 20px; overflow: hidden; box-shadow: 0 0 10px rgba(0,255,255,0.3);
         }
-        #powerup-progress { height: 100%; background: linear-gradient(90deg, #ff0000, #ffffff, #0000ff); width: 100%; }
+        #powerup-progress { height: 100%; width: 100%; transition: background 0.3s; }
+        .mode-active { background: linear-gradient(90deg, #00f, #fff, #00f); }
+        .mode-cooldown { background: #ff0000; }
     </style>
 </head>
 <body>
 
     <div id="ui-container">
         <h1 style="margin:0; font-size: 22px; color: #fff; text-shadow: 0 0 10px #00f;">שאגת הארי : הגנה אווירית</h1>
-        <div style="font-size: 14px; color: #88ccff;">שיא: <span id="high-score-val">0</span> | רצף לשדרוג: <span id="combo-val">0</span>/10</div>
+        <div style="font-size: 14px; color: #88ccff;">שיא: <span id="high-score-val">0</span> | רצף: <span id="combo-val">0</span>/10</div>
     </div>
 
     <div id="game-wrapper">
@@ -64,7 +66,7 @@
         const pProgress = document.getElementById('powerup-progress');
 
         let score, shields, drones, particles, shakeTime, gameOver, currentCombo;
-        let superLaserTimer = 0, flashOpacity = 0, gameSpeedFactor = 1.0;
+        let superLaserTimer = 0, cooldownTimer = 0, flashOpacity = 0, gameSpeedFactor = 1.0;
         let highScore = localStorage.getItem('droneHighScore') || 0;
         document.getElementById('high-score-val').innerText = highScore;
 
@@ -83,18 +85,8 @@
             ctx.translate(x, y);
             ctx.strokeStyle = color;
             ctx.lineWidth = thickness;
-            ctx.beginPath();
-            ctx.moveTo(0, -size);
-            ctx.lineTo(size * 0.86, size * 0.5);
-            ctx.lineTo(-size * 0.86, size * 0.5);
-            ctx.closePath();
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(0, size);
-            ctx.lineTo(size * 0.86, -size * 0.5);
-            ctx.lineTo(-size * 0.86, -size * 0.5);
-            ctx.closePath();
-            ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, -size); ctx.lineTo(size * 0.86, size * 0.5); ctx.lineTo(-size * 0.86, size * 0.5); ctx.closePath(); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, size); ctx.lineTo(size * 0.86, -size * 0.5); ctx.lineTo(-size * 0.86, -size * 0.5); ctx.closePath(); ctx.stroke();
             ctx.restore();
         }
 
@@ -108,11 +100,7 @@
                 this.life = 1.0;
                 this.angle = Math.random() * Math.PI;
             }
-            update() { 
-                this.x += this.speedX; this.y += this.speedY; 
-                this.life -= 0.025;
-                this.angle += 0.1;
-            }
+            update() { this.x += this.speedX; this.y += this.speedY; this.life -= 0.025; this.angle += 0.1; }
             draw() {
                 ctx.globalAlpha = this.life;
                 drawStar(this.x, this.y, this.size, this.color, 2);
@@ -123,20 +111,16 @@
         class Drone {
             constructor() {
                 let r = Math.random();
-                if (r < 0.15) { 
-                    this.type = 'fast'; this.colors = ['#008000', '#ffffff', '#ff0000']; this.size = 14; this.speed = 2.6;
-                } else if (r < 0.35) { 
-                    this.type = 'tank'; this.colors = ['#ffffff', '#ff0000', '#000000']; this.size = 24; this.speed = 0.9;
-                } else { 
-                    this.type = 'normal'; this.colors = ['#ffffff', '#ff0000', '#008000']; this.size = 18; this.speed = 1.3;
-                }
+                if (r < 0.15) { this.colors = ['#008000', '#ffffff', '#ff0000']; this.size = 14; this.speed = 2.6; }
+                else if (r < 0.35) { this.colors = ['#ffffff', '#ff0000', '#000000']; this.size = 24; this.speed = 0.9; }
+                else { this.colors = ['#ffffff', '#ff0000', '#008000']; this.size = 18; this.speed = 1.3; }
                 this.x = Math.random() * (canvas.width - 60) + 30;
                 this.y = -40; this.lockLevel = 0;
             }
             update() {
                 this.y += this.speed * gameSpeedFactor;
                 let dist = Math.sqrt((this.x - mouseX)**2 + (this.y - mouseY)**2);
-                if (dist < 60) this.lockLevel += (superLaserTimer > 0 ? 35 : 18);
+                if (dist < 60) this.lockLevel += (superLaserTimer > 0 ? 40 : 18);
                 else this.lockLevel = Math.max(0, this.lockLevel - 5);
             }
             draw() {
@@ -156,9 +140,7 @@
             const div = document.createElement('div');
             div.className = 'alert-msg';
             const city = cities[Math.floor(Math.random() * cities.length)];
-            const injured = Math.floor(Math.random() * 8) + 1;
-            const killed = Math.floor(Math.random() * 3);
-            div.innerHTML = `נפילה ב${city}<br>⚠️ פצועים: ${injured} | הרוגים: ${killed}`;
+            div.innerHTML = `נפילה ב${city}<br>⚠️ נזק כבד לרכוש`;
             alertContainer.prepend(div);
             setTimeout(() => { if(div.parentNode) div.remove(); }, 3000);
         }
@@ -166,7 +148,7 @@
         function initVars() {
             score = 0; shields = 5; drones = []; particles = [];
             shakeTime = 0; gameOver = false; currentCombo = 0;
-            superLaserTimer = 0; flashOpacity = 0; gameSpeedFactor = 1.0;
+            superLaserTimer = 0; cooldownTimer = 0; flashOpacity = 0; gameSpeedFactor = 1.0;
             restartBtn.style.display = 'none'; pBar.style.display = 'none';
             document.getElementById('combo-val').innerText = "0";
         }
@@ -190,16 +172,26 @@
             if (shields <= 0) {
                 gameOver = true;
                 ctx.fillStyle = 'red'; ctx.font = 'bold 40px Arial'; ctx.textAlign = 'center';
-                ctx.fillText("המערכת קרסה", canvas.width/2, canvas.height/2);
+                ctx.fillText("המערכת הושבתה", canvas.width/2, canvas.height/2);
                 restartBtn.style.display = 'block';
                 if (score > highScore) { highScore = score; localStorage.setItem('droneHighScore', score); }
                 ctx.restore(); return;
             }
 
+            // ניהול זמני סופר לייזר ו-Cooldown (60 פריימים בשנייה)
             if (superLaserTimer > 0) {
-                superLaserTimer--; pBar.style.display = 'block';
-                pProgress.style.width = (superLaserTimer / 180) * 100 + "%";
-            } else { pBar.style.display = 'none'; }
+                superLaserTimer--;
+                pBar.style.display = 'block';
+                pProgress.className = 'mode-active';
+                pProgress.style.width = (superLaserTimer / 180) * 100 + "%"; // 180 פריימים = 3 שניות
+                if (superLaserTimer === 0) cooldownTimer = 180; // התחלת Cooldown של 3 שניות
+            } else if (cooldownTimer > 0) {
+                cooldownTimer--;
+                pBar.style.display = 'block';
+                pProgress.className = 'mode-cooldown';
+                pProgress.style.width = (100 - (cooldownTimer / 180) * 100) + "%";
+                if (cooldownTimer === 0) pBar.style.display = 'none';
+            }
 
             if (drones.length < 8 && Math.random() < 0.05) drones.push(new Drone());
 
@@ -211,7 +203,8 @@
                 if (drones[i].lockLevel >= 100) {
                     for(let j=0; j<10; j++) particles.push(new Particle(drones[i].x, drones[i].y));
                     score += 100;
-                    if (superLaserTimer <= 0) {
+                    // צבירת רצף רק אם אין Cooldown ואין סופר לייזר פעיל
+                    if (superLaserTimer <= 0 && cooldownTimer <= 0) {
                         currentCombo++;
                         if (currentCombo >= 10) { superLaserTimer = 180; currentCombo = 0; }
                     }
@@ -220,7 +213,7 @@
                     document.getElementById('combo-val').innerText = currentCombo;
                 } else if (drones[i].y > canvas.height) {
                     drones.splice(i, 1); shields--; shakeTime = 25; triggerAlert();
-                    currentCombo = 0; document.getElementById('combo-val').innerText = "0";
+                    if (superLaserTimer <= 0) { currentCombo = 0; document.getElementById('combo-val').innerText = "0"; }
                 }
             }
 
@@ -239,7 +232,6 @@
                 }
                 ctx.strokeStyle = grad;
                 ctx.beginPath(); ctx.moveTo(canvas.width/2, canvas.height); ctx.lineTo(mouseX, mouseY); ctx.stroke();
-                
                 let hitColor = Math.random() > 0.5 ? "#fff" : "#00f";
                 drawStar(mouseX, mouseY, 16, hitColor, 3); 
             }
