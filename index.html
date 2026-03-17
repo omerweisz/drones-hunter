@@ -12,26 +12,30 @@
             overflow: hidden; display: flex; flex-direction: column;
             height: 100vh; touch-action: none;
         }
-        #ui-container { padding: 10px; user-select: none; flex-shrink: 0; }
+        #ui-container { padding: 10px; user-select: none; flex-shrink: 0; z-index: 5; }
         #game-wrapper {
             flex-grow: 1; position: relative; width: 100%;
             display: flex; justify-content: center; align-items: center;
         }
         canvas { background-color: #0a0f24; display: block; }
-        #alert-container { position: absolute; right: 20px; top: 15%; width: 220px; pointer-events: none; z-index: 10; }
-        .alert-msg {
-            background: rgba(255, 0, 0, 0.8); border-right: 4px solid #fff;
-            padding: 10px; color: white; font-weight: bold;
-            margin-bottom: 8px; font-size: 13px; animation: fadeOut 3s forwards;
-            box-shadow: 0 0 10px rgba(255,0,0,0.5); border-radius: 4px;
-            text-align: right;
+        #alert-container { 
+            position: absolute; right: 20px; top: 15%; width: 220px; 
+            pointer-events: none; z-index: 100; 
         }
-        @keyframes fadeOut { 0% { opacity: 1; transform: translateX(0); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateX(30px); } }
+        .alert-msg {
+            background: rgba(255, 0, 0, 0.9); border-right: 5px solid #fff;
+            padding: 12px; color: white; font-weight: bold;
+            margin-bottom: 10px; font-size: 14px; animation: slideIn 0.3s ease-out, fadeOut 3s forwards;
+            box-shadow: 0 0 15px rgba(255,0,0,0.6); border-radius: 4px;
+            text-align: right; line-height: 1.4;
+        }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes fadeOut { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateX(20px); } }
         
         #restart-btn {
             display: none; position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%);
             padding: 15px 30px; font-size: 22px; background: #ffffff; color: #050510;
-            border: 3px solid #0000ff; border-radius: 5px; cursor: pointer; font-weight: bold; z-index: 20;
+            border: 3px solid #0000ff; border-radius: 5px; cursor: pointer; font-weight: bold; z-index: 200;
         }
         #powerup-bar {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
@@ -115,8 +119,7 @@
                 else this.lockLevel = Math.max(0, this.lockLevel - 5);
             }
             draw() {
-                let h = 10;
-                let w = this.size * 2;
+                let h = 10; let w = this.size * 2;
                 this.colors.forEach((color, i) => {
                     ctx.fillStyle = color;
                     ctx.fillRect(this.x - this.size + (i * (w/3)), this.y - h/2, w/3, h);
@@ -128,12 +131,12 @@
             }
         }
 
-        function showAlert() {
+        function triggerAlert() {
             const div = document.createElement('div');
             div.className = 'alert-msg';
             const city = cities[Math.floor(Math.random() * cities.length)];
-            const injured = Math.floor(Math.random() * 8) + 1;
-            const killed = Math.floor(Math.random() * 4);
+            const injured = Math.floor(Math.random() * 10) + 1;
+            const killed = Math.floor(Math.random() * 5);
             div.innerHTML = `נפילה ב${city}<br>⚠️ פצועים: ${injured} | הרוגים: ${killed}`;
             alertContainer.prepend(div);
             setTimeout(() => { if(div.parentNode) div.remove(); }, 3000);
@@ -145,6 +148,7 @@
             superLaserTimer = 0; gameSpeedFactor = 1.0;
             restartBtn.style.display = 'none'; pBar.style.display = 'none';
             alertContainer.innerHTML = '';
+            document.getElementById('combo-val').innerText = "0";
         }
 
         let mouseX = 0, mouseY = 0;
@@ -160,7 +164,7 @@
         function gameLoop() {
             if (gameOver) return;
             ctx.save();
-            if (shakeTime > 0) { ctx.translate(Math.random()*6-3, Math.random()*6-3); shakeTime--; }
+            if (shakeTime > 0) { ctx.translate(Math.random()*10-5, Math.random()*10-5); shakeTime--; }
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             if (shields <= 0) {
@@ -168,6 +172,7 @@
                 ctx.fillStyle = 'red'; ctx.font = 'bold 40px Arial'; ctx.textAlign = 'center';
                 ctx.fillText("הבסיס קרס", canvas.width/2, canvas.height/2);
                 restartBtn.style.display = 'block';
+                if (score > highScore) { highScore = score; localStorage.setItem('droneHighScore', score); }
                 ctx.restore(); return;
             }
 
@@ -183,10 +188,9 @@
             for (let i = drones.length - 1; i >= 0; i--) {
                 drones[i].update(); drones[i].draw();
                 if (drones[i].lockLevel > 0) firing = true;
+                
                 if (drones[i].lockLevel >= 100) {
-                    drones[i].colors.forEach(c => {
-                        for(let j=0; j<6; j++) particles.push(new Particle(drones[i].x, drones[i].y, c));
-                    });
+                    drones[i].colors.forEach(c => { for(let j=0; j<6; j++) particles.push(new Particle(drones[i].x, drones[i].y, c)); });
                     score += 100;
                     if (superLaserTimer <= 0) {
                         currentCombo++;
@@ -195,9 +199,12 @@
                     drones.splice(i, 1);
                     document.getElementById('combo-val').innerText = currentCombo;
                 } else if (drones[i].y > canvas.height) {
-                    drones.splice(i, 1); shields--; shakeTime = 15;
-                    currentCombo = 0; document.getElementById('combo-val').innerText = 0;
-                    showAlert();
+                    drones.splice(i, 1);
+                    shields--; 
+                    shakeTime = 20;
+                    currentCombo = 0; 
+                    document.getElementById('combo-val').innerText = 0;
+                    triggerAlert(); // הקריאה לפונקציה הוחזרה!
                 }
             }
 
@@ -218,8 +225,10 @@
                 ctx.beginPath(); ctx.moveTo(canvas.width/2, canvas.height); ctx.lineTo(mouseX, mouseY); ctx.stroke();
             }
 
-            ctx.fillStyle = "#0ff"; ctx.font = "16px Arial"; ctx.textAlign = "right";
+            ctx.fillStyle = "#0ff"; ctx.font = "bold 16px Arial"; ctx.textAlign = "right";
             ctx.fillText(`ניקוד: ${score}`, canvas.width - 20, 30);
+            ctx.fillText(`הגנות: ${shields}`, canvas.width - 20, 55);
+            
             ctx.restore(); requestAnimationFrame(gameLoop);
         }
 
