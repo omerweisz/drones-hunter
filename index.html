@@ -22,7 +22,8 @@
         #laser-ui { width: 100%; height: 25px; background: #111; position: relative; z-index: 50; }
         #laser-bar { height: 100%; width: 0%; background: #0088ff; transition: width 0.1s linear; }
         
-        #restart-btn { display: none; position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); padding: 18px 45px; font-size: 26px; background: #fff; color: #000; border: 5px solid #00f; border-radius: 12px; cursor: pointer; font-weight: bold; z-index: 200; box-shadow: 0 0 20px #00f; }
+        /* מיקום הכפתור עודכן ל-20% מהלמעלה */
+        #restart-btn { display: none; position: absolute; top: 20%; left: 50%; transform: translate(-50%, -50%); padding: 18px 45px; font-size: 26px; background: #fff; color: #000; border: 5px solid #00f; border-radius: 12px; cursor: pointer; font-weight: bold; z-index: 200; box-shadow: 0 0 20px #00f; }
         #combo-display { position: absolute; right: 20px; top: 15px; color: #fff; font-size: 18px; font-weight: bold; text-shadow: 0 0 10px #00f; pointer-events: none; }
         
         @keyframes slideIn { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -98,7 +99,7 @@
             let r = Math.random();
             this.zigzag = Math.random() < 0.25;
             this.zigzagPhase = Math.random() * Math.PI * 2;
-            this.zigzagSpeed = 0.08; // מהירות תנועה לצדדים גדולה יותר
+            this.zigzagSpeed = 0.08;
             
             if (r < 0.2) { this.type='fast'; this.speed=3.8; this.hpMax=40; } 
             else if (r < 0.4) { this.type='tank'; this.speed=1.8; this.hpMax=300; } 
@@ -113,7 +114,7 @@
             this.y += this.speed;
             if (this.zigzag) {
                 this.zigzagPhase += this.zigzagSpeed;
-                this.x = this.baseX + Math.sin(this.zigzagPhase) * 80; // טווח תנועה גדול יותר
+                this.x = this.baseX + Math.sin(this.zigzagPhase) * 80;
             }
             if (Math.sqrt((this.x-mx)**2 + (this.y-my)**2) < 45) this.hp += baseLaserPower;
         }
@@ -140,7 +141,6 @@
 
     function triggerClearSky() {
         specialMsg.style.display = 'block';
-        // פיצוץ עבור כל כטב"ם
         for(let d of drones) {
             for(let p=0; p<20; p++) particles.push(new Particle(d.x, d.y, "#ffffff"));
         }
@@ -172,7 +172,6 @@
             ctx.fillText("הבסיס הושמד!", canvas.width/2, canvas.height/2); restartBtn.style.display='block'; return;
         }
 
-        // בדיקת בונוס 5000
         if (score >= lastMilestone + 5000 && score > 0) {
             lastMilestone += 5000;
             triggerClearSky();
@@ -190,7 +189,6 @@
                 for(let p=0; p<15; p++) particles.push(new Particle(drones[i].x, drones[i].y));
                 score += 100; killStreak++; killStreakUI.innerText = killStreak;
                 
-                // בונוס 5 הריגות
                 if(killStreak % 5 === 0) {
                     let killed = 0;
                     for(let j=drones.length-1; j>=0 && killed < 2; j--) {
