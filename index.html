@@ -53,7 +53,7 @@
     const laserBar = document.getElementById('laser-bar');
     const restartBtn = document.getElementById('restart-btn');
 
-    let score, shields, drones, gameOver, combo, lastBonusScore;
+    let score, shields, drones, particles, gameOver, combo, lastBonusScore;
     
     let baseLaserPower = 6.0; 
     let laserPower = baseLaserPower; 
@@ -61,6 +61,7 @@
     let laserTimer = 0; 
     const POWER_FRAMES = 180; 
     const COOLDOWN_FRAMES = 180; 
+    const MAX_DRONES_ON_SCREEN = 8; // הגבלה כדי שלא יהיה בלתי אפשרי
 
     let mx = -100, my = -100;
     const cities = ["תל אביב", "חיפה", "אשקלון", "באר שבע", "נהריה", "שדרות", "ירושלים", "אשדוד", "קרית שמונה", "נתיבות"];
@@ -71,10 +72,49 @@
     }
     window.addEventListener('resize', resize); resize();
 
+    class Particle {
+        constructor(x, y) {
+            this.x = x; this.y = y;
+            this.size = Math.random() * 8 + 5;
+            this.vx = (Math.random() - 0.5) * 8;
+            this.vy = (Math.random() - 0.5) * 8;
+            this.color = Math.random() > 0.5 ? "#ffffff" : "#00529B";
+            this.life = 1.0;
+        }
+        update() {
+            this.x += this.vx; this.y += this.vy;
+            this.life -= 0.02;
+        }
+        draw() {
+            ctx.save();
+            ctx.globalAlpha = this.life;
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.life * 5);
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 2;
+            // ציור מגן דוד פשוט
+            this.drawStar(0, 0, this.size);
+            ctx.restore();
+        }
+        drawStar(x, y, s) {
+            ctx.beginPath();
+            for(let i=0; i<3; i++) {
+                let a = (i * 120) * Math.PI/180;
+                ctx.lineTo(Math.cos(a)*s, Math.sin(a)*s);
+            }
+            ctx.closePath(); ctx.stroke();
+            ctx.beginPath();
+            for(let i=0; i<3; i++) {
+                let a = (i * 120 + 60) * Math.PI/180;
+                ctx.lineTo(Math.cos(a)*s, Math.sin(a)*s);
+            }
+            ctx.closePath(); ctx.stroke();
+        }
+    }
+
     class Drone {
         constructor() {
             let r = Math.random();
-            // הכטב"ם המהיר (שחור-אדום-לבן) קיבל HP נמוך מאוד כדי שיהיה אפשר להוריד אותו בשנייה
             if (r < 0.3) { this.type='fast'; this.speed=3.4; this.hpMax=35; } 
             else if (r < 0.5) { this.type='tank'; this.speed=1.8; this.hpMax=280; } 
             else { this.type='norm'; this.speed=2.7; this.hpMax=130; } 
@@ -88,14 +128,17 @@
         draw() {
             ctx.strokeStyle = "#777"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(this.x-20, this.y-12); ctx.lineTo(this.x+20, this.y+12); ctx.moveTo(this.x+20, this.y-12); ctx.lineTo(this.x-20, this.y+12); ctx.stroke();
             let w = 34, h = 16, cL, cM, cR;
-            // צבעי הכטב"מים
             if(this.type === 'norm') { cR='#f00'; cM='#007a3d'; cL='#fff'; } 
-            else if(this.type === 'fast') { cL='#000'; cM='#f00'; cR='#fff'; } // שחור-אדום-לבן (המהיר)
+            else if(this.type === 'fast') { cL='#000'; cM='#f00'; cR='#fff'; } 
             else { cL='#f00'; cM='#000'; cR='#fff'; } 
             ctx.fillStyle = cL; ctx.fillRect(this.x-w/2, this.y-h/2, w/3, h); ctx.fillStyle = cM; ctx.fillRect(this.x-w/2+w/3, this.y-h/2, w/3, h); ctx.fillStyle = cR; ctx.fillRect(this.x-w/2+(w/3)*2, this.y-h/2, w/3, h);
             ctx.fillStyle="#fff"; [[-20,-12],[20,-12],[-20,12],[20,12]].forEach(p=> { ctx.beginPath(); ctx.arc(this.x+p[0],this.y+p[1],4,0,Math.PI*2); ctx.fill(); });
             if(this.hp > 0) { ctx.fillStyle = "rgba(0,255,255,0.8)"; ctx.fillRect(this.x-17, this.y-25, (this.hp/this.hpMax)*34, 4); }
         }
+    }
+
+    function createExplosion(x, y) {
+        for(let i=0; i<12; i++) particles.push(new Particle(x, y));
     }
 
     function triggerImpactAlert() {
@@ -110,7 +153,7 @@
     }
 
     function initVars() {
-        score=0; shields=5; drones=[]; combo=0; lastBonusScore=0; gameOver=false;
+        score=0; shields=5; drones=[]; particles=[]; combo=0; lastBonusScore=0; gameOver=false;
         laserPower = baseLaserPower; isLaserCharged = false; isCooldown = false; laserTimer = 0;
         document.getElementById('shields-val').innerText = shields; document.getElementById('score-val').innerText = score;
         restartBtn.style.display='none';
@@ -166,11 +209,12 @@
         }
         updateLaserUI();
 
-        if(Math.random() < 0.018) drones.push(new Drone());
+        // הגבלה על כמות כטב"מים
+        if(Math.random() < 0.018 && drones.length < MAX_DRONES_ON_SCREEN) drones.push(new Drone());
 
         if(score >= lastBonusScore + 5000 && score > 0) {
             lastBonusScore += 5000; systemMsg.style.display = 'block';
-            drones.forEach(d => { d.hp = d.hpMax; }); 
+            drones.forEach(d => { createExplosion(d.x, d.y); d.hp = d.hpMax; }); 
             setTimeout(() => { systemMsg.style.display = 'none'; }, 3500);
         }
 
@@ -180,6 +224,7 @@
             if(drones[i].hp > 0 && drones[i].hp < drones[i].hpMax) firing = true;
 
             if(drones[i].hp >= drones[i].hpMax) {
+                createExplosion(drones[i].x, drones[i].y); // אפקט מגני דוד
                 score += 100; drones.splice(i,1);
                 
                 if(!isLaserCharged && !isCooldown) {
@@ -193,6 +238,12 @@
                 drones.splice(i,1); shields--; combo=0; triggerImpactAlert(); 
                 document.getElementById('shields-val').innerText = shields;
             }
+        }
+
+        // עדכון וציור חלקיקים (מגני דוד)
+        for(let i=particles.length-1; i>=0; i--) {
+            particles[i].update(); particles[i].draw();
+            if(particles[i].life <= 0) particles.splice(i,1);
         }
 
         if(firing || isLaserCharged) {
