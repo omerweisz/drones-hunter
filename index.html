@@ -22,7 +22,7 @@
         .alert-msg {
             background: rgba(255, 0, 0, 0.9); border-right: 5px solid #fff;
             padding: 12px; color: white; font-weight: bold; margin-bottom: 10px; 
-            font-size: 14px; animation: slideIn 0.3s ease-out, fadeOut 3s forwards;
+            font-size: 14px; animation: slideIn 0.2s ease-out, fadeOut 3s forwards;
             box-shadow: 0 0 15px rgba(255,0,0,0.6); border-radius: 4px; text-align: right;
         }
         @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
@@ -36,9 +36,9 @@
         #powerup-bar {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
             width: 250px; height: 15px; background: rgba(255,255,255,0.1); border: 2px solid #fff;
-            display: none; border-radius: 20px; overflow: hidden; box-shadow: 0 0 10px rgba(0,255,255,0.3);
+            display: none; border-radius: 20px; overflow: hidden;
         }
-        #powerup-progress { height: 100%; width: 100%; transition: background 0.3s; }
+        #powerup-progress { height: 100%; width: 100%; }
         .mode-active { background: linear-gradient(90deg, #00f, #fff, #00f); }
         .mode-cooldown { background: #ff0000; }
     </style>
@@ -111,17 +111,26 @@
         class Drone {
             constructor() {
                 let r = Math.random();
-                if (r < 0.15) { this.colors = ['#008000', '#ffffff', '#ff0000']; this.size = 14; this.speed = 2.6; }
-                else if (r < 0.35) { this.colors = ['#ffffff', '#ff0000', '#000000']; this.size = 24; this.speed = 0.9; }
-                else { this.colors = ['#ffffff', '#ff0000', '#008000']; this.size = 18; this.speed = 1.3; }
+                if (r < 0.2) { 
+                    this.type = 'fast'; this.colors = ['#008000', '#ffffff', '#ff0000']; this.size = 14; this.speed = 2.8; this.hpRate = 4;
+                } else if (r < 0.4) { 
+                    this.type = 'tank'; this.colors = ['#ffffff', '#ff0000', '#000000']; this.size = 26; this.speed = 0.8; this.hpRate = 1.2; // קשה מאוד להשמדה
+                } else { 
+                    this.type = 'normal'; this.colors = ['#ffffff', '#ff0000', '#008000']; this.size = 18; this.speed = 1.4; this.hpRate = 2.5;
+                }
                 this.x = Math.random() * (canvas.width - 60) + 30;
                 this.y = -40; this.lockLevel = 0;
             }
             update() {
                 this.y += this.speed * gameSpeedFactor;
                 let dist = Math.sqrt((this.x - mouseX)**2 + (this.y - mouseY)**2);
-                if (dist < 60) this.lockLevel += (superLaserTimer > 0 ? 40 : 18);
-                else this.lockLevel = Math.max(0, this.lockLevel - 5);
+                // חישוב מהירות ההורדה לפי סוג הכטב"ם ואם הסופר לייזר פעיל
+                if (dist < 60) {
+                    let damage = superLaserTimer > 0 ? 3.5 : 1.0;
+                    this.lockLevel += this.hpRate * damage;
+                } else {
+                    this.lockLevel = Math.max(0, this.lockLevel - 3);
+                }
             }
             draw() {
                 let w = this.size * 2;
@@ -130,8 +139,9 @@
                     ctx.fillRect(this.x - this.size + (i * (w/3)), this.y - 6, w/3, 12);
                 });
                 if (this.lockLevel > 0) {
-                    ctx.fillStyle = "#333"; ctx.fillRect(this.x-15, this.y-22, 30, 4);
-                    ctx.fillStyle = "#0ff"; ctx.fillRect(this.x-15, this.y-22, (this.lockLevel/100)*30, 4);
+                    ctx.fillStyle = "#333"; ctx.fillRect(this.x-20, this.y-22, 40, 5);
+                    ctx.fillStyle = this.lockLevel >= 100 ? "#fff" : "#0ff"; 
+                    ctx.fillRect(this.x-20, this.y-22, (Math.min(100, this.lockLevel)/100)*40, 5);
                 }
             }
         }
@@ -140,7 +150,8 @@
             const div = document.createElement('div');
             div.className = 'alert-msg';
             const city = cities[Math.floor(Math.random() * cities.length)];
-            div.innerHTML = `נפילה ב${city}<br>⚠️ נזק כבד לרכוש`;
+            const injured = Math.floor(Math.random() * 12) + 1;
+            div.innerHTML = `נפילה ב${city}<br>⚠️ פצועים: ${injured}`;
             alertContainer.prepend(div);
             setTimeout(() => { if(div.parentNode) div.remove(); }, 3000);
         }
@@ -172,19 +183,18 @@
             if (shields <= 0) {
                 gameOver = true;
                 ctx.fillStyle = 'red'; ctx.font = 'bold 40px Arial'; ctx.textAlign = 'center';
-                ctx.fillText("המערכת הושבתה", canvas.width/2, canvas.height/2);
+                ctx.fillText("המערכת קרסה", canvas.width/2, canvas.height/2);
                 restartBtn.style.display = 'block';
                 if (score > highScore) { highScore = score; localStorage.setItem('droneHighScore', score); }
                 ctx.restore(); return;
             }
 
-            // ניהול זמני סופר לייזר ו-Cooldown (60 פריימים בשנייה)
             if (superLaserTimer > 0) {
                 superLaserTimer--;
                 pBar.style.display = 'block';
                 pProgress.className = 'mode-active';
-                pProgress.style.width = (superLaserTimer / 180) * 100 + "%"; // 180 פריימים = 3 שניות
-                if (superLaserTimer === 0) cooldownTimer = 180; // התחלת Cooldown של 3 שניות
+                pProgress.style.width = (superLaserTimer / 180) * 100 + "%";
+                if (superLaserTimer === 0) cooldownTimer = 180;
             } else if (cooldownTimer > 0) {
                 cooldownTimer--;
                 pBar.style.display = 'block';
@@ -201,9 +211,8 @@
                 if (drones[i].lockLevel > 0) firing = true;
                 
                 if (drones[i].lockLevel >= 100) {
-                    for(let j=0; j<10; j++) particles.push(new Particle(drones[i].x, drones[i].y));
+                    for(let j=0; j<12; j++) particles.push(new Particle(drones[i].x, drones[i].y));
                     score += 100;
-                    // צבירת רצף רק אם אין Cooldown ואין סופר לייזר פעיל
                     if (superLaserTimer <= 0 && cooldownTimer <= 0) {
                         currentCombo++;
                         if (currentCombo >= 10) { superLaserTimer = 180; currentCombo = 0; }
@@ -212,7 +221,11 @@
                     flashOpacity = 0.3;
                     document.getElementById('combo-val').innerText = currentCombo;
                 } else if (drones[i].y > canvas.height) {
-                    drones.splice(i, 1); shields--; shakeTime = 25; triggerAlert();
+                    // כאן זה קורה עכשיו מיד!
+                    triggerAlert(); 
+                    drones.splice(i, 1); 
+                    shields--; 
+                    shakeTime = 25;
                     if (superLaserTimer <= 0) { currentCombo = 0; document.getElementById('combo-val').innerText = "0"; }
                 }
             }
