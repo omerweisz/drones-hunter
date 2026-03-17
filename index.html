@@ -37,7 +37,7 @@
 <body>
 
     <div id="ui-container">
-        <h1 style="margin:0; font-size: 20px;">מערכת לייזר: הגנה אווירית</h1>
+        <h1 style="margin:0; font-size: 22px; color: #fff; text-shadow: 0 0 10px #00f;">שאגת הארי : הגנה אווירית</h1>
         <div style="font-size: 14px;">שיא: <span id="high-score-val">0</span> | חיים: <span id="shields-val">5</span></div>
     </div>
 
@@ -54,6 +54,7 @@
         const alertContainer = document.getElementById('alert-container');
 
         let score, shields, drones, particles, shakeTime, gameOver;
+        let flashOpacity = 0;
         let gameSpeedFactor = 1.0;
         let highScore = localStorage.getItem('droneHighScore') || 0;
         document.getElementById('high-score-val').innerText = highScore;
@@ -71,32 +72,28 @@
             ctx.translate(x, y);
             ctx.strokeStyle = color;
             ctx.lineWidth = thickness;
-            
-            // משולש 1
             ctx.beginPath();
             ctx.moveTo(0, -size);
             ctx.lineTo(size * 0.86, size * 0.5);
             ctx.lineTo(-size * 0.86, size * 0.5);
             ctx.closePath();
             ctx.stroke();
-            
-            // משולש 2
             ctx.beginPath();
             ctx.moveTo(0, size);
             ctx.lineTo(size * 0.86, -size * 0.5);
             ctx.lineTo(-size * 0.86, -size * 0.5);
             ctx.closePath();
             ctx.stroke();
-            
             ctx.restore();
         }
 
         class Particle {
-            constructor(x, y, color) {
-                this.x = x; this.y = y; this.color = color;
-                this.size = Math.random() * 10 + 5;
-                this.speedX = (Math.random() - 0.5) * 12;
-                this.speedY = (Math.random() - 0.5) * 12;
+            constructor(x, y) {
+                this.x = x; this.y = y;
+                this.color = Math.random() > 0.5 ? "#ffffff" : "#3366ff";
+                this.size = Math.random() * 12 + 6;
+                this.speedX = (Math.random() - 0.5) * 15;
+                this.speedY = (Math.random() - 0.5) * 15;
                 this.life = 1.0;
                 this.angle = Math.random() * Math.PI;
             }
@@ -107,7 +104,7 @@
             }
             draw() {
                 ctx.globalAlpha = this.life;
-                drawStar(this.x, this.y, this.size, this.color, 1.5);
+                drawStar(this.x, this.y, this.size, this.color, 2);
                 ctx.globalAlpha = 1;
             }
         }
@@ -116,11 +113,11 @@
             constructor() {
                 let r = Math.random();
                 if (r < 0.15) { 
-                    this.colors = ['#008000', '#ffffff', '#ff0000']; this.size = 14; this.speed = 2.5;
+                    this.colors = ['#008000', '#ffffff', '#ff0000']; this.size = 14; this.speed = 2.6;
                 } else if (r < 0.35) { 
-                    this.colors = ['#ffffff', '#ff0000', '#000000']; this.size = 24; this.speed = 0.8;
+                    this.colors = ['#ffffff', '#ff0000', '#000000']; this.size = 24; this.speed = 0.9;
                 } else { 
-                    this.colors = ['#ffffff', '#ff0000', '#008000']; this.size = 18; this.speed = 1.2;
+                    this.colors = ['#ffffff', '#ff0000', '#008000']; this.size = 18; this.speed = 1.3;
                 }
                 this.x = Math.random() * (canvas.width - 60) + 30;
                 this.y = -40; this.lockLevel = 0;
@@ -128,7 +125,7 @@
             update() {
                 this.y += this.speed * gameSpeedFactor;
                 let dist = Math.sqrt((this.x - mouseX)**2 + (this.y - mouseY)**2);
-                if (dist < 60) this.lockLevel += 15;
+                if (dist < 60) this.lockLevel += 18;
                 else this.lockLevel = Math.max(0, this.lockLevel - 5);
             }
             draw() {
@@ -138,8 +135,8 @@
                     ctx.fillRect(this.x - this.size + (i * (w/3)), this.y - 6, w/3, 12);
                 });
                 if (this.lockLevel > 0) {
-                    ctx.fillStyle = "#333"; ctx.fillRect(this.x-15, this.y-20, 30, 4);
-                    ctx.fillStyle = "#0ff"; ctx.fillRect(this.x-15, this.y-20, (this.lockLevel/100)*30, 4);
+                    ctx.fillStyle = "#333"; ctx.fillRect(this.x-15, this.y-22, 30, 4);
+                    ctx.fillStyle = "#0ff"; ctx.fillRect(this.x-15, this.y-22, (this.lockLevel/100)*30, 4);
                 }
             }
         }
@@ -147,14 +144,14 @@
         function triggerAlert() {
             const div = document.createElement('div');
             div.className = 'alert-msg';
-            div.innerHTML = `נפילה באזור המגורים!<br>⚠️ יש פצועים בשטח`;
+            div.innerHTML = `חדירה במרחב!<br>⚠️ נפילה זוהתה`;
             alertContainer.prepend(div);
             setTimeout(() => { if(div.parentNode) div.remove(); }, 3000);
         }
 
         function initVars() {
             score = 0; shields = 5; drones = []; particles = [];
-            shakeTime = 0; gameOver = false;
+            shakeTime = 0; gameOver = false; flashOpacity = 0;
             restartBtn.style.display = 'none';
             document.getElementById('shields-val').innerText = shields;
         }
@@ -178,7 +175,7 @@
             if (shields <= 0) {
                 gameOver = true;
                 ctx.fillStyle = 'red'; ctx.font = 'bold 40px Arial'; ctx.textAlign = 'center';
-                ctx.fillText("המשחק נגמר", canvas.width/2, canvas.height/2);
+                ctx.fillText("המערכת הושבתה", canvas.width/2, canvas.height/2);
                 restartBtn.style.display = 'block';
                 ctx.restore(); return;
             }
@@ -191,10 +188,11 @@
                 if (drones[i].lockLevel > 0) firing = true;
                 
                 if (drones[i].lockLevel >= 100) {
-                    for(let j=0; j<8; j++) particles.push(new Particle(drones[i].x, drones[i].y, "#ffffff"));
+                    for(let j=0; j<12; j++) particles.push(new Particle(drones[i].x, drones[i].y));
                     score += 100; drones.splice(i, 1);
+                    flashOpacity = 0.4; // הבזק לבן בפיצוץ
                 } else if (drones[i].y > canvas.height) {
-                    drones.splice(i, 1); shields--; shakeTime = 20; triggerAlert();
+                    drones.splice(i, 1); shields--; shakeTime = 25; triggerAlert();
                     document.getElementById('shields-val').innerText = shields;
                 }
             }
@@ -206,10 +204,18 @@
 
             if (firing) {
                 let grad = ctx.createLinearGradient(canvas.width/2, canvas.height, mouseX, mouseY);
-                grad.addColorStop(0, "blue"); grad.addColorStop(1, "white");
+                grad.addColorStop(0, "#00f"); grad.addColorStop(1, "#fff");
                 ctx.strokeStyle = grad; ctx.lineWidth = 4;
                 ctx.beginPath(); ctx.moveTo(canvas.width/2, canvas.height); ctx.lineTo(mouseX, mouseY); ctx.stroke();
-                drawStar(mouseX, mouseY, 12, "#ffffff", 2); // מגן דוד בקצה הלייזר
+                
+                let hitColor = Math.random() > 0.5 ? "#fff" : "#00f";
+                drawStar(mouseX, mouseY, 15, hitColor, 3); 
+            }
+
+            if (flashOpacity > 0) {
+                ctx.fillStyle = `rgba(255, 255, 255, ${flashOpacity})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                flashOpacity -= 0.05;
             }
 
             ctx.fillStyle = "#0ff"; ctx.font = "bold 16px Arial"; ctx.textAlign = "right";
