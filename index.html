@@ -74,10 +74,10 @@
     class Drone {
         constructor() {
             let r = Math.random();
-            // מהירויות מופחתות קצת לבקשתך
-            if (r < 0.3) { this.type='fast'; this.speed=4.8; this.hpMax=75; } 
-            else if (r < 0.5) { this.type='tank'; this.speed=1.8; this.hpMax=280; } 
-            else { this.type='norm'; this.speed=3.0; this.hpMax=130; } 
+            // המהירויות עודכנו כדי שלא יהיה מהיר מדי
+            if (r < 0.3) { this.type='fast'; this.speed=3.8; this.hpMax=75; } // סגול - מהיר אבל סביר
+            else if (r < 0.5) { this.type='tank'; this.speed=1.8; this.hpMax=280; } // צהוב - איטי ועמיד
+            else { this.type='norm'; this.speed=3.0; this.hpMax=130; } // אדום - רגיל
             this.x = Math.random()*(canvas.width-80)+40; this.y = -60; this.hp = 0;
         }
         update() {
@@ -165,7 +165,8 @@
         }
         updateLaserUI();
 
-        if(Math.random() < 0.028) drones.push(new Drone());
+        // תדירות הופעה מאוזנת (0.018) כדי למנוע עומס
+        if(Math.random() < 0.018) drones.push(new Drone());
 
         if(score >= lastBonusScore + 5000 && score > 0) {
             lastBonusScore += 5000; systemMsg.style.display = 'block';
