@@ -55,12 +55,12 @@
 
     let score, shields, drones, gameOver, combo, lastBonusScore;
     
-    let baseLaserPower = 3.2; // כוח לייזר מוגבר להריגה קצת יותר מהירה
+    let baseLaserPower = 3.2; 
     let laserPower = baseLaserPower; 
     let isLaserCharged = false, isCooldown = false;
     let laserTimer = 0; 
-    const POWER_FRAMES = 180; // 3 שניות כוח מתפרץ
-    const COOLDOWN_FRAMES = 180; // 3 שניות קירור
+    const POWER_FRAMES = 180; 
+    const COOLDOWN_FRAMES = 180; 
 
     let mx = -100, my = -100;
     const cities = ["תל אביב", "חיפה", "אשקלון", "באר שבע", "נהריה", "שדרות", "ירושלים", "אשדוד", "קרית שמונה", "נתיבות"];
@@ -74,10 +74,10 @@
     class Drone {
         constructor() {
             let r = Math.random();
-            // הגדרות חיים ומהירות מעודכנות
-            if (r < 0.3) { this.type='fast'; this.speed=6.0; this.hpMax=75; } // סגול - נהרג מהר מאוד, זז מהר
-            else if (r < 0.5) { this.type='tank'; this.speed=2.2; this.hpMax=280; } // צהוב - חזק מאוד, דורש השהייה של הלייזר עליו
-            else { this.type='norm'; this.speed=3.8; this.hpMax=130; } // אדום - רגיל
+            // מהירויות מופחתות קצת לבקשתך
+            if (r < 0.3) { this.type='fast'; this.speed=4.8; this.hpMax=75; } 
+            else if (r < 0.5) { this.type='tank'; this.speed=1.8; this.hpMax=280; } 
+            else { this.type='norm'; this.speed=3.0; this.hpMax=130; } 
             this.x = Math.random()*(canvas.width-80)+40; this.y = -60; this.hp = 0;
         }
         update() {
@@ -165,7 +165,6 @@
         }
         updateLaserUI();
 
-        // תדירות הופעה הוגברה שוב קלות (מ-0.02 ל-0.028)
         if(Math.random() < 0.028) drones.push(new Drone());
 
         if(score >= lastBonusScore + 5000 && score > 0) {
