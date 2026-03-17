@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מערכת לייזר: הגנה אווירית - מהדורה מיוחדת</title>
+    <title>מערכת לייזר: הגנה אווירית</title>
     <style>
         body {
             background-color: #050510; color: #00ffff;
@@ -18,23 +18,11 @@
             display: flex; justify-content: center; align-items: center;
         }
         canvas { background-color: #0a0f24; display: block; }
-        @media (min-width: 850px) {
-            canvas { border: 2px solid #1a365d; border-radius: 10px; box-shadow: 0 0 20px rgba(0, 255, 255, 0.2); }
-        }
-        #alert-container { position: absolute; right: 20px; top: 15%; width: 220px; pointer-events: none; z-index: 10; }
-        .alert-msg {
-            background: rgba(255, 0, 0, 0.7); border-right: 4px solid #fff;
-            padding: 10px; color: white; font-weight: bold;
-            margin-bottom: 8px; font-size: 13px; animation: fadeOut 3s forwards;
-            box-shadow: 0 0 10px rgba(255,0,0,0.5); border-radius: 4px;
-        }
-        
         #restart-btn {
             display: none; position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%);
             padding: 15px 30px; font-size: 22px; background: #ffffff; color: #050510;
-            border: 2px solid #0000ff; border-radius: 5px; cursor: pointer; font-weight: bold; z-index: 20;
+            border: 3px solid #0000ff; border-radius: 5px; cursor: pointer; font-weight: bold; z-index: 20;
         }
-
         #powerup-bar {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
             width: 220px; height: 12px; background: rgba(0,0,0,0.5); border: 2px solid #fff;
@@ -51,26 +39,22 @@
     </div>
 
     <div id="game-wrapper">
-        <div id="alert-container"></div>
-        <div id="powerup-bar"><div id="powerup-progress"></div></div>
         <canvas id="gameCanvas"></canvas>
         <button id="restart-btn" onclick="resetGame()">שחק שוב</button>
+        <div id="powerup-bar"><div id="powerup-progress"></div></div>
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const restartBtn = document.getElementById('restart-btn');
-        const alertContainer = document.getElementById('alert-container');
         const pBar = document.getElementById('powerup-bar');
         const pProgress = document.getElementById('powerup-progress');
 
         let score, shields, drones, particles, shakeTime, gameOver, currentCombo;
-        let superLaserTimer = 0, empFlash = 0, gameSpeedFactor = 1.0;
+        let superLaserTimer = 0, gameSpeedFactor = 1.0;
         let highScore = localStorage.getItem('droneHighScore') || 0;
         document.getElementById('high-score-val').innerText = highScore;
-
-        const cities = ["תל אביב", "חיפה", "אשקלון", "באר שבע", "נהריה", "שדרות", "ירושלים", "אשדוד", "קרית שמונה", "נתיבות"];
 
         function resize() {
             const wrapper = document.getElementById('game-wrapper');
@@ -98,62 +82,42 @@
 
         class Drone {
             constructor() {
-                this.type = this.getType();
-                this.x = Math.random() * (canvas.width - 80) + 40;
-                this.y = -40; this.lockLevel = 0;
-                this.setupStats();
-            }
-            getType() {
                 let r = Math.random();
-                if (r < 0.15) return 'fast'; // סגולים לשעבר
-                if (r < 0.35) return 'tank'; // צהובים לשעבר
-                return 'normal'; // אדומים לשעבר
-            }
-            setupStats() {
-                if (this.type === 'tank') {
-                    this.baseSpeed = 0.7; this.colors = ['#ffffff', '#ff0000', '#000000']; this.size = 20;
-                } else if (this.type === 'fast') {
-                    this.baseSpeed = 2.5; this.colors = ['#ff0000', '#ffffff', '#008000']; this.size = 11;
-                } else {
-                    this.baseSpeed = 1.1; this.colors = ['#ffffff', '#ff0000', '#008000']; this.size = 15;
+                if (r < 0.15) { // סגולים לשעבר -> לבן, אדום, ירוק (סידור שונה)
+                    this.type = 'fast'; this.colors = ['#008000', '#ffffff', '#ff0000']; this.size = 12; this.speed = 2.6;
+                } else if (r < 0.35) { // צהובים לשעבר -> לבן, אדום, שחור
+                    this.type = 'tank'; this.colors = ['#ffffff', '#ff0000', '#000000']; this.size = 22; this.speed = 0.8;
+                } else { // אדומים לשעבר -> לבן, אדום, ירוק
+                    this.type = 'normal'; this.colors = ['#ffffff', '#ff0000', '#008000']; this.size = 16; this.speed = 1.2;
                 }
+                this.x = Math.random() * (canvas.width - 60) + 30;
+                this.y = -40; this.lockLevel = 0;
             }
             update() {
-                this.y += this.baseSpeed * gameSpeedFactor;
-                if (this.type === 'fast') this.x += Math.sin(this.y / 20) * 5;
+                this.y += this.speed * gameSpeedFactor;
+                if (this.type === 'fast') this.x += Math.sin(this.y / 15) * 6;
                 let dist = Math.sqrt((this.x - mouseX)**2 + (this.y - mouseY)**2);
-                let hitRadius = (window.innerWidth < 850) ? 75 : 55;
-                let lockSpeed = (superLaserTimer > 0) ? 35 : 15;
-                if (dist < hitRadius) this.lockLevel += lockSpeed;
-                else this.lockLevel = Math.max(0, this.lockLevel - 6);
+                if (dist < 60) this.lockLevel += (superLaserTimer > 0 ? 35 : 15);
+                else this.lockLevel = Math.max(0, this.lockLevel - 5);
             }
             draw() {
-                // ציור הכטב"ם עם הצבעים החדשים
-                const segmentWidth = (this.size * 2) / this.colors.length;
+                // ציור הפסים על הכטב"ם
+                let h = 10;
+                let w = this.size * 2;
                 this.colors.forEach((color, i) => {
                     ctx.fillStyle = color;
-                    ctx.fillRect(this.x - this.size + (i * segmentWidth), this.y - 4, segmentWidth, 8);
+                    ctx.fillRect(this.x - this.size + (i * (w/3)), this.y - h/2, w/3, h);
                 });
-                
-                ctx.fillStyle = "#fff";
-                [[-1,-1], [1,-1]].forEach(p => {
-                    ctx.beginPath(); ctx.arc(this.x + p[0]*this.size, this.y - 6, 2, 0, Math.PI*2); ctx.fill();
-                });
+                // כנפיים קטנות
+                ctx.fillStyle = "white";
+                ctx.fillRect(this.x - this.size - 4, this.y - 2, 4, 4);
+                ctx.fillRect(this.x + this.size, this.y - 2, 4, 4);
                 
                 if (this.lockLevel > 0) {
-                    ctx.fillStyle = "#333"; ctx.fillRect(this.x-20, this.y-20, 40, 4);
-                    ctx.fillStyle = "#0ff"; ctx.fillRect(this.x-20, this.y-20, (this.lockLevel/100)*40, 4);
+                    ctx.fillStyle = "#333"; ctx.fillRect(this.x-15, this.y-15, 30, 3);
+                    ctx.fillStyle = "#0ff"; ctx.fillRect(this.x-15, this.y-15, (this.lockLevel/100)*30, 3);
                 }
             }
-        }
-
-        function showAlert() {
-            const div = document.createElement('div');
-            div.className = 'alert-msg';
-            const city = cities[Math.floor(Math.random() * cities.length)];
-            div.innerHTML = `נפילה באזור ${city}`;
-            alertContainer.prepend(div);
-            setTimeout(() => { if(div.parentNode) div.remove(); }, 2500);
         }
 
         function initVars() {
@@ -161,7 +125,6 @@
             shakeTime = 0; gameOver = false; currentCombo = 0;
             superLaserTimer = 0; gameSpeedFactor = 1.0;
             restartBtn.style.display = 'none'; pBar.style.display = 'none';
-            alertContainer.innerHTML = '';
         }
 
         let mouseX = 0, mouseY = 0;
@@ -170,7 +133,6 @@
             mouseX = x - rect.left; mouseY = y - rect.top;
         }
         canvas.addEventListener('mousemove', e => updatePos(e.clientX, e.clientY));
-        canvas.addEventListener('touchstart', e => { e.preventDefault(); updatePos(e.touches[0].clientX, e.touches[0].clientY); }, {passive:false});
         canvas.addEventListener('touchmove', e => { e.preventDefault(); updatePos(e.touches[0].clientX, e.touches[0].clientY); }, {passive:false});
 
         function resetGame() { initVars(); gameLoop(); }
@@ -178,30 +140,24 @@
         function gameLoop() {
             if (gameOver) return;
             ctx.save();
-            if (shakeTime > 0) { ctx.translate(Math.random()*8-4, Math.random()*8-4); shakeTime--; }
+            if (shakeTime > 0) { ctx.translate(Math.random()*6-3, Math.random()*6-3); shakeTime--; }
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             if (shields <= 0) {
                 gameOver = true;
                 ctx.fillStyle = 'red'; ctx.font = 'bold 40px Arial'; ctx.textAlign = 'center';
                 ctx.fillText("הבסיס קרס", canvas.width/2, canvas.height/2);
-                ctx.font = '20px Arial'; ctx.fillStyle = 'white';
-                ctx.fillText(`ניקוד: ${score}`, canvas.width/2, canvas.height/2 + 60);
                 restartBtn.style.display = 'block';
-                if (score > highScore) {
-                    highScore = score; localStorage.setItem('droneHighScore', score);
-                }
                 ctx.restore(); return;
             }
 
             gameSpeedFactor = 1.0 + (score / 15000);
-
             if (superLaserTimer > 0) {
                 superLaserTimer--; pBar.style.display = 'block';
                 pProgress.style.width = (superLaserTimer / 180) * 100 + "%";
             } else { pBar.style.display = 'none'; }
 
-            if (drones.length < 12 && Math.random() < 0.05) drones.push(new Drone());
+            if (drones.length < 10 && Math.random() < 0.05) drones.push(new Drone());
 
             let firing = false;
             for (let i = drones.length - 1; i >= 0; i--) {
@@ -209,7 +165,7 @@
                 if (drones[i].lockLevel > 0) firing = true;
                 if (drones[i].lockLevel >= 100) {
                     drones[i].colors.forEach(c => {
-                        for(let j=0; j<5; j++) particles.push(new Particle(drones[i].x, drones[i].y, c));
+                        for(let j=0; j<6; j++) particles.push(new Particle(drones[i].x, drones[i].y, c));
                     });
                     score += 100;
                     if (superLaserTimer <= 0) {
@@ -221,7 +177,6 @@
                 } else if (drones[i].y > canvas.height) {
                     drones.splice(i, 1); shields--; shakeTime = 15;
                     currentCombo = 0; document.getElementById('combo-val').innerText = 0;
-                    showAlert();
                 }
             }
 
@@ -230,20 +185,17 @@
                 if (particles[i].life <= 0) particles.splice(i, 1);
             }
 
-            // ציור הלייזרים
             if (firing) {
-                ctx.lineWidth = superLaserTimer > 0 ? 10 : 4;
+                ctx.lineWidth = superLaserTimer > 0 ? 8 : 3;
+                let grad = ctx.createLinearGradient(canvas.width/2, canvas.height, mouseX, mouseY);
                 if (superLaserTimer > 0) {
-                    // לייזר סופר: אדום, כחול, לבן
-                    let grad = ctx.createLinearGradient(canvas.width/2, canvas.height, mouseX, mouseY);
+                    // לייזר "ארה"ב": אדום-לבן-כחול
                     grad.addColorStop(0, "red"); grad.addColorStop(0.5, "white"); grad.addColorStop(1, "blue");
-                    ctx.strokeStyle = grad;
                 } else {
-                    // לייזר רגיל: כחול לבן
-                    let grad = ctx.createLinearGradient(canvas.width/2, canvas.height, mouseX, mouseY);
+                    // לייזר רגיל: כחול-לבן
                     grad.addColorStop(0, "blue"); grad.addColorStop(1, "white");
-                    ctx.strokeStyle = grad;
                 }
+                ctx.strokeStyle = grad;
                 ctx.beginPath(); ctx.moveTo(canvas.width/2, canvas.height); ctx.lineTo(mouseX, mouseY); ctx.stroke();
             }
 
