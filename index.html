@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מערכת לייזר: הגנה אווירית</title>
+    <title>שאגת הארי : הגנה אוויריתtitle>
     <style>
         body {
             background-color: #050510; color: #00ffff;
@@ -82,19 +82,60 @@
         window.addEventListener('resize', resize);
         resize();
 
+        // פונקציית עזר לציור מגן דוד
+        function drawMagenDavid(ctx, x, y, size) {
+            ctx.beginPath();
+            // משולש ראשון (שפיץ למעלה)
+            ctx.moveTo(x, y - size);
+            ctx.lineTo(x + size * 0.866, y + size * 0.5);
+            ctx.lineTo(x - size * 0.866, y + size * 0.5);
+            ctx.closePath();
+            // משולש שני (שפיץ למטה)
+            ctx.moveTo(x, y + size);
+            ctx.lineTo(x + size * 0.866, y - size * 0.5);
+            ctx.lineTo(x - size * 0.866, y - size * 0.5);
+            ctx.closePath();
+        }
+
         class Particle {
             constructor(x, y, color) {
                 this.x = x; this.y = y; this.color = color;
-                this.size = Math.random() * 3 + 1;
-                this.speedX = (Math.random() - 0.5) * 8;
-                this.speedY = (Math.random() - 0.5) * 8;
+                // גודל החלקיק הוא רדיוס המגן דוד
+                this.size = Math.random() * 4 + 2; 
+                this.speedX = (Math.random() - 0.5) * 10;
+                this.speedY = (Math.random() - 0.5) * 10;
                 this.life = 1.0;
+                // הוספת סיבוב אקראי למראה טבעי יותר
+                this.angle = Math.random() * Math.PI * 2;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.2;
             }
-            update() { this.x += this.speedX; this.y += this.speedY; this.life -= 0.05; }
+            update() { 
+                this.x += this.speedX; 
+                this.y += this.speedY; 
+                this.life -= 0.03; // מוריד חיים לאט יותר כדי שיראו את המגן דוד
+                this.angle += this.rotationSpeed;
+                // הוספת גרביטציה קלה
+                this.speedY += 0.1;
+            }
             draw() {
-                ctx.globalAlpha = this.life; ctx.fillStyle = this.color;
-                ctx.fillRect(this.x, this.y, this.size, this.size);
-                ctx.globalAlpha = 1;
+                ctx.save();
+                ctx.globalAlpha = this.life;
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                
+                // ציור המגן דוד
+                drawMagenDavid(ctx, 0, 0, this.size);
+                
+                // מילוי בצבע החלקיק
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                
+                // הוספת קו מתאר דק כדי שיראה ברור יותר
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+                
+                ctx.restore();
             }
         }
 
@@ -190,7 +231,10 @@
                 if (drones[i].lockLevel > 0) firing = true;
                 
                 if (drones[i].lockLevel >= 100) {
-                    drones[i].colors.forEach(c => { for(let j=0; j<6; j++) particles.push(new Particle(drones[i].x, drones[i].y, c)); });
+                    drones[i].colors.forEach(c => { 
+                        // יוצר פחות חלקיקים כי הם גדולים ומורכבים יותר
+                        for(let j=0; j<4; j++) particles.push(new Particle(drones[i].x, drones[i].y, c)); 
+                    });
                     score += 100;
                     if (superLaserTimer <= 0) {
                         currentCombo++;
@@ -204,7 +248,7 @@
                     shakeTime = 20;
                     currentCombo = 0; 
                     document.getElementById('combo-val').innerText = 0;
-                    triggerAlert(); // הקריאה לפונקציה הוחזרה!
+                    triggerAlert();
                 }
             }
 
