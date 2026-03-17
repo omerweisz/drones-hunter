@@ -55,7 +55,7 @@
 
     let score, shields, drones, gameOver, combo, lastBonusScore;
     
-    let baseLaserPower = 2.5; // כוח מאוזן לזמן הריגה נורמלי
+    let baseLaserPower = 3.2; // כוח לייזר מוגבר להריגה קצת יותר מהירה
     let laserPower = baseLaserPower; 
     let isLaserCharged = false, isCooldown = false;
     let laserTimer = 0; 
@@ -74,10 +74,10 @@
     class Drone {
         constructor() {
             let r = Math.random();
-            // המהירויות הועלו משמעותית כדי שיהיה אקשן
-            if (r < 0.3) { this.type='fast'; this.speed=6.0; this.hpMax=80; } // סגול (מהיר جدا)
-            else if (r < 0.5) { this.type='tank'; this.speed=2.2; this.hpMax=260; } // צהוב (טנק, עכשיו זז מהר יותר)
-            else { this.type='norm'; this.speed=3.8; this.hpMax=140; } // אדום (רגיל)
+            // הגדרות חיים ומהירות מעודכנות
+            if (r < 0.3) { this.type='fast'; this.speed=6.0; this.hpMax=75; } // סגול - נהרג מהר מאוד, זז מהר
+            else if (r < 0.5) { this.type='tank'; this.speed=2.2; this.hpMax=280; } // צהוב - חזק מאוד, דורש השהייה של הלייזר עליו
+            else { this.type='norm'; this.speed=3.8; this.hpMax=130; } // אדום - רגיל
             this.x = Math.random()*(canvas.width-80)+40; this.y = -60; this.hp = 0;
         }
         update() {
@@ -165,8 +165,8 @@
         }
         updateLaserUI();
 
-        // קצב הופעה הוגבר (יותר אקשן, יופיעו במקביל)
-        if(Math.random() < 0.02) drones.push(new Drone());
+        // תדירות הופעה הוגברה שוב קלות (מ-0.02 ל-0.028)
+        if(Math.random() < 0.028) drones.push(new Drone());
 
         if(score >= lastBonusScore + 5000 && score > 0) {
             lastBonusScore += 5000; systemMsg.style.display = 'block';
