@@ -15,16 +15,20 @@
         #cross-line { width: 4px; height: 20px; background: #fff; position: absolute; left: 50%; top: -6px; transform: translateX(-50%); box-shadow: 0 0 10px #fff; border-radius: 2px; }
 
         #alert-container { position: absolute; left: 20px; top: 20px; width: 280px; pointer-events: none; z-index: 100; display: flex; flex-direction: column; gap: 10px; }
-        .alert-msg { background: rgba(200, 0, 0, 0.9); border-right: 6px solid #ff3333; padding: 15px; color: white; font-weight: bold; font-size: 14px; animation: slideIn 0.3s ease-out, fadeOut 4s forwards; border-radius: 5px; text-align: right; box-shadow: 0 0 15px rgba(255,0,0,0.5); }
+        .alert-msg { background: rgba(200, 0, 0, 0.9); border-right: 6px solid #ff3333; padding: 12px; color: white; font-weight: bold; font-size: 14px; animation: slideIn 0.3s ease-out, fadeOut 4s forwards; border-radius: 5px; text-align: right; }
         
+        /* הודעת כיפת ברזל וחץ */
+        #special-msg { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); width: 80%; background: rgba(0, 50, 150, 0.9); color: white; border: 4px solid #00ffff; padding: 20px; border-radius: 20px; font-size: 24px; font-weight: bold; display: none; z-index: 150; box-shadow: 0 0 30px #00ffff; text-shadow: 0 0 10px #fff; pointer-events: none; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
         #laser-ui { width: 100%; height: 25px; background: #111; position: relative; z-index: 50; }
         #laser-bar { height: 100%; width: 0%; background: #0088ff; transition: width 0.1s linear; }
         
-        #restart-btn { display: none; position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); padding: 18px 45px; font-size: 26px; background: #fff; color: #000; border: 5px solid #00f; border-radius: 12px; cursor: pointer; font-weight: bold; z-index: 200; box-shadow: 0 0 20px #00f; }
+        #restart-btn { display: none; position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); padding: 18px 45px; font-size: 26px; background: #fff; color: #000; border: 5px solid #00f; border-radius: 12px; cursor: pointer; font-weight: bold; z-index: 200; box-shadow: 0 0 20px #00f; }
         #combo-display { position: absolute; right: 20px; top: 15px; color: #fff; font-size: 18px; font-weight: bold; text-shadow: 0 0 10px #00f; pointer-events: none; }
         
         @keyframes slideIn { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes fadeOut { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-20px); } }
+        @keyframes popIn { from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
@@ -37,6 +41,7 @@
     <div id="game-wrapper">
         <div id="combo-display">רצף: <span id="kill-streak-val">0</span></div>
         <div id="alert-container"></div>
+        <div id="special-msg">כיפת ברזל ומערכת חץ עזרו לך!</div>
         <canvas id="gameCanvas"></canvas>
         <button id="restart-btn" onclick="resetGame()">שחק שוב</button>
     </div>
@@ -54,10 +59,11 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const alertContainer = document.getElementById('alert-container');
+    const specialMsg = document.getElementById('special-msg');
     const restartBtn = document.getElementById('restart-btn');
     const killStreakUI = document.getElementById('kill-streak-val');
 
-    let score, shields, drones, particles, gameOver, killStreak, bonusTexts = [];
+    let score, shields, drones, particles, gameOver, killStreak, bonusTexts = [], lastMilestone = 0;
     let baseLaserPower = 6.0;
     let mx = -100, my = -100;
     const cities = ["תל אביב", "חיפה", "אשקלון", "באר שבע", "נהריה", "שדרות", "ירושלים", "אשדוד", "קרית שמונה", "נתיבות"];
@@ -69,12 +75,12 @@
     window.addEventListener('resize', resize); resize();
 
     class Particle {
-        constructor(x, y) {
+        constructor(x, y, color = null) {
             this.x = x; this.y = y;
             this.size = Math.random() * 6 + 4;
-            this.vx = (Math.random() - 0.5) * 10;
-            this.vy = (Math.random() - 0.5) * 10;
-            this.color = Math.random() > 0.5 ? "#ffffff" : "#00ffff";
+            this.vx = (Math.random() - 0.5) * 12;
+            this.vy = (Math.random() - 0.5) * 12;
+            this.color = color || (Math.random() > 0.5 ? "#ffffff" : "#00ffff");
             this.life = 1.0;
         }
         update() { this.x += this.vx; this.y += this.vy; this.life -= 0.03; }
@@ -92,31 +98,20 @@
     class Drone {
         constructor() {
             let r = Math.random();
-            this.zigzag = Math.random() < 0.25; // 25% הסתברות לזיגזג
+            this.zigzag = Math.random() < 0.25;
             this.zigzagPhase = Math.random() * Math.PI * 2;
-            
             if (r < 0.2) { this.type='fast'; this.speed=3.6; this.hpMax=40; } 
             else if (r < 0.4) { this.type='tank'; this.speed=1.6; this.hpMax=300; } 
             else { this.type='norm'; this.speed=2.8; this.hpMax=140; } 
-            
-            this.x = Math.random()*(canvas.width-100)+50; 
-            this.y = -60; 
-            this.hp = 0;
-            this.baseX = this.x;
+            this.x = Math.random()*(canvas.width-100)+50; this.y = -60; this.hp = 0; this.baseX = this.x;
         }
         update() {
             this.y += this.speed;
-            if (this.zigzag) {
-                this.zigzagPhase += 0.05;
-                this.x = this.baseX + Math.sin(this.zigzagPhase) * 50; // תנועה ימינה שמאלה
-            }
+            if (this.zigzag) { this.zigzagPhase += 0.05; this.x = this.baseX + Math.sin(this.zigzagPhase) * 50; }
             if (Math.sqrt((this.x-mx)**2 + (this.y-my)**2) < 45) this.hp += baseLaserPower;
         }
         draw() {
-            // הילה סגולה לכטב"ם זיגזג
-            if (this.zigzag) {
-                ctx.shadowBlur = 10; ctx.shadowColor = "#ff00ff";
-            }
+            if (this.zigzag) { ctx.shadowBlur = 10; ctx.shadowColor = "#ff00ff"; }
             ctx.strokeStyle = "#777"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(this.x-20, this.y-12); ctx.lineTo(this.x+20, this.y+12); ctx.moveTo(this.x+20, this.y-12); ctx.lineTo(this.x-20, this.y+12); ctx.stroke();
             let w = 34, h = 16, cL, cM, cR;
             if(this.type === 'norm') { cR='#f00'; cM='#007a3d'; cL='#fff'; } 
@@ -129,8 +124,7 @@
     }
 
     function triggerImpactAlert() {
-        const div = document.createElement('div');
-        div.className = 'alert-msg';
+        const div = document.createElement('div'); div.className = 'alert-msg';
         const city = cities[Math.floor(Math.random() * cities.length)];
         const dead = Math.floor(Math.random() * 4) + 1;
         const injured = Math.floor(Math.random() * 10) + 2;
@@ -139,13 +133,19 @@
         setTimeout(() => { if(div.parentNode) div.remove(); }, 4000);
     }
 
+    function triggerClearSky() {
+        specialMsg.style.display = 'block';
+        for(let d of drones) {
+            for(let p=0; p<15; p++) particles.push(new Particle(d.x, d.y, "#00ffff"));
+        }
+        drones = [];
+        setTimeout(() => { specialMsg.style.display = 'none'; }, 3000);
+    }
+
     function initVars() {
-        score=0; shields=5; drones=[]; particles=[]; killStreak=0; bonusTexts=[]; gameOver=false;
-        document.getElementById('shields-val').innerText = shields;
-        document.getElementById('score-val').innerText = score;
-        killStreakUI.innerText = killStreak;
-        restartBtn.style.display='none';
-        alertContainer.innerHTML = '';
+        score=0; shields=5; drones=[]; particles=[]; killStreak=0; bonusTexts=[]; lastMilestone=0; gameOver=false;
+        document.getElementById('shields-val').innerText = shields; document.getElementById('score-val').innerText = score;
+        killStreakUI.innerText = killStreak; restartBtn.style.display='none'; alertContainer.innerHTML = '';
     }
 
     function updateMouse(e) {
@@ -153,9 +153,7 @@
         mx = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
         my = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
     }
-    canvas.addEventListener('mousemove', updateMouse);
-    canvas.addEventListener('touchstart', updateMouse);
-    canvas.addEventListener('touchmove', e => { e.preventDefault(); updateMouse(e); }, {passive: false});
+    canvas.addEventListener('mousemove', updateMouse); canvas.addEventListener('touchstart', updateMouse); canvas.addEventListener('touchmove', e => { e.preventDefault(); updateMouse(e); }, {passive: false});
 
     function resetGame() { initVars(); loop(); }
 
@@ -165,11 +163,15 @@
 
         if (shields <= 0) {
             gameOver=true; ctx.fillStyle='#f00'; ctx.font='bold 40px Arial'; ctx.textAlign='center';
-            ctx.fillText("הבסיס הושמד!", canvas.width/2, canvas.height/2);
-            restartBtn.style.display='block'; return;
+            ctx.fillText("הבסיס הושמד!", canvas.width/2, canvas.height/2); restartBtn.style.display='block'; return;
         }
 
-        // ניהול עומס כטב"מים - אם יש יותר מ-5, ההסתברות ליצירה חדשה יורדת מאוד
+        // בדיקת ניקוד להודעה מיוחדת
+        if (score >= lastMilestone + 5000) {
+            lastMilestone += 5000;
+            triggerClearSky();
+        }
+
         let spawnChance = drones.length > 5 ? 0.005 : 0.02;
         if(Math.random() < spawnChance && drones.length < 10) drones.push(new Drone());
 
@@ -181,41 +183,29 @@
             if(drones[i].hp >= drones[i].hpMax) {
                 for(let p=0; p<15; p++) particles.push(new Particle(drones[i].x, drones[i].y));
                 score += 100; killStreak++; killStreakUI.innerText = killStreak;
-
                 if(killStreak % 5 === 0) {
                     let targetsFound = 0;
                     for(let j=drones.length-1; j>=0 && targetsFound < 2; j--) {
-                        if(i !== j) { 
-                            for(let p=0; p<20; p++) particles.push(new Particle(drones[j].x, drones[j].y));
-                            drones.splice(j, 1); targetsFound++; score += 50; if(j < i) i--;
-                        }
+                        if(i !== j) { for(let p=0; p<20; p++) particles.push(new Particle(drones[j].x, drones[j].y)); drones.splice(j, 1); targetsFound++; score += 50; if(j < i) i--; }
                     }
                     if(targetsFound > 0) bonusTexts.push({x: canvas.width/2, y: canvas.height/2, life: 1.0, text: "בונוס רצף: 2-"});
                 }
                 drones.splice(i,1); document.getElementById('score-val').innerText = score;
             } else if(drones[i].y > canvas.height) {
                 drones.splice(i,1); shields--; killStreak=0; killStreakUI.innerText = killStreak;
-                triggerImpactAlert();
-                document.getElementById('shields-val').innerText = shields;
+                triggerImpactAlert(); document.getElementById('shields-val').innerText = shields;
             }
         }
 
-        for(let i=particles.length-1; i>=0; i--) {
-            particles[i].update(); particles[i].draw();
-            if(particles[i].life <= 0) particles.splice(i,1);
-        }
-
+        for(let i=particles.length-1; i>=0; i--) { particles[i].update(); particles[i].draw(); if(particles[i].life <= 0) particles.splice(i,1); }
         for(let i=bonusTexts.length-1; i>=0; i--) {
-            ctx.save(); ctx.globalAlpha = bonusTexts[i].life; ctx.fillStyle="#00ffff"; ctx.font="bold 24px Arial";
-            ctx.textAlign="center"; ctx.fillText(bonusTexts[i].text, bonusTexts[i].x, bonusTexts[i].y);
-            ctx.restore(); bonusTexts[i].y -= 1; bonusTexts[i].life -= 0.02;
-            if(bonusTexts[i].life <= 0) bonusTexts.splice(i,1);
+            ctx.save(); ctx.globalAlpha = bonusTexts[i].life; ctx.fillStyle="#00ffff"; ctx.font="bold 24px Arial"; ctx.textAlign="center"; ctx.fillText(bonusTexts[i].text, bonusTexts[i].x, bonusTexts[i].y);
+            ctx.restore(); bonusTexts[i].y -= 1; bonusTexts[i].life -= 0.02; if(bonusTexts[i].life <= 0) bonusTexts.splice(i,1);
         }
 
         if(firing) {
             ctx.strokeStyle = "#00ffff"; ctx.lineWidth = 6; ctx.shadowBlur = 10; ctx.shadowColor = "cyan";
-            ctx.beginPath(); ctx.moveTo(canvas.width/2, canvas.height); ctx.lineTo(mx, my); ctx.stroke();
-            ctx.shadowBlur = 0;
+            ctx.beginPath(); ctx.moveTo(canvas.width/2, canvas.height); ctx.lineTo(mx, my); ctx.stroke(); ctx.shadowBlur = 0;
         }
         requestAnimationFrame(loop);
     }
